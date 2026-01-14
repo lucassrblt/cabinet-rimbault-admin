@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const labelFilter = searchParams.get("labelFilter")
     
-    let whereClause: Prisma.PropertyWhereInput = {}
+    const whereClause: Prisma.PropertyWhereInput = {}
     
     // Handle label filter
     if (labelFilter === "generated") {

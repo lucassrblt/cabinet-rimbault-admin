@@ -255,10 +255,10 @@ export function LabelGenerationWizard({
   const [loadingMessage, setLoadingMessage] = useState("")
 
   // Energy values (editable)
-  const [energyValue, setEnergyValue] = useState(property.energyValue || 0)
-  const [energyClass, setEnergyClass] = useState(property.energyClass || "D")
-  const [gesValue, setGesValue] = useState(property.gesValue || 0)
-  const [gesClass, setGesClass] = useState(property.gesClass || "D")
+  const [energyValue, setEnergyValue] = useState(property.energy?.energyValue || 0)
+  const [energyClass, setEnergyClass] = useState(property.energy?.energyClass || "D")
+  const [gesValue, setGesValue] = useState(property.energy?.gesValue || 0)
+  const [gesClass, setGesClass] = useState(property.energy?.gesClass || "D")
 
   // Preview data from API
   const [energyPreview, setEnergyPreview] = useState<EnergyPreview | null>(null)
@@ -267,7 +267,7 @@ export function LabelGenerationWizard({
   const [selectedPhotos, setSelectedPhotos] = useState<PropertyImage[]>([])
   
   // Label customization
-  const [primaryColor, setPrimaryColor] = useState(property.labelColor || defaultColor)
+  const [primaryColor, setPrimaryColor] = useState(property.energy?.labelColor || defaultColor)
 
   // Updated property for preview
   const [previewProperty, setPreviewProperty] = useState<Property>(property)

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { uploadToStorage, BUCKETS } from "@/lib/supabase"
 import { requireAuth } from "@/lib/api-auth"
+import { EnergyClass } from "@prisma/client"
 
 interface GenerateLabelRequest {
   propertyId: string
@@ -13,9 +14,9 @@ interface GenerateLabelRequest {
   previewGesUrl?: string
   // Optional: updated energy values
   energyValue?: number
-  energyClass?: string
+  energyClass?: EnergyClass
   gesValue?: number
-  gesClass?: string
+  gesClass?: EnergyClass
 }
 
 /**
@@ -152,7 +153,7 @@ export async function POST(request: Request) {
       if (dpeError) {
         console.error("Error uploading DPE image:", dpeError)
       }
-      dpeUrl = uploadedDpeUrl
+      dpeUrl = uploadedDpeUrl ?? undefined
 
       // Upload GES image to FILES bucket
       const gesFileName = `${property.reference}_ges_${Date.now()}.png`
@@ -166,7 +167,7 @@ export async function POST(request: Request) {
       if (gesError) {
         console.error("Error uploading GES image:", gesError)
       }
-      gesUrl = uploadedGesUrl
+      gesUrl = uploadedGesUrl ?? undefined
     }
 
     // Get selected photos
