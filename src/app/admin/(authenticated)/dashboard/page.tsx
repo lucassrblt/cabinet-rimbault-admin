@@ -2,63 +2,125 @@ import { Building2, Eye, Tag, TrendingUp, ArrowUpRight } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { prisma } from "@/lib/prisma"
+import { PropertyStatus, PropertyType, TransactionType } from "@prisma/client"
 
-// Ces données seront remplacées par des vraies données de la base
-const stats = [
-  {
-    name: "Total annonces",
-    value: "24",
-    change: "+2 ce mois",
-    icon: Building2,
-  },
-  {
-    name: "Annonces publiées",
-    value: "18",
-    change: "75% du total",
-    icon: Eye,
-  },
-  {
-    name: "Sous compromis",
-    value: "4",
-    change: "+1 cette semaine",
-    icon: TrendingUp,
-  },
-  {
-    name: "Étiquettes générées",
-    value: "45",
-    change: "+5 ce mois",
-    icon: Tag,
-  },
-]
+// Fonction pour formater le prix
+function formatPrice(price: number, transactionType: TransactionType): string {
+  const formatted = new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  }).format(price)
+  
+  if (transactionType === 'LOCATION' || transactionType === 'LOCATION_SAISONNIERE') {
+    return `${formatted}/mois`
+  }
+  return formatted
+}
 
-const recentProperties = [
-  {
-    id: "1",
-    title: "Appartement T3 Centre-ville",
-    type: "Appartement",
-    price: "189 000 €",
-    status: "Disponible",
-    city: "Lyon",
-  },
-  {
-    id: "2",
-    title: "Maison avec jardin",
-    type: "Maison",
-    price: "345 000 €",
-    status: "Sous compromis",
-    city: "Villeurbanne",
-  },
-  {
-    id: "3",
-    title: "Studio meublé",
-    type: "Appartement",
-    price: "650 €/mois",
-    status: "Disponible",
-    city: "Lyon",
-  },
-]
+// Fonction pour traduire le type de bien
+function translatePropertyType(type: PropertyType): string {
+  const translations: Record<PropertyType, string> = {
+    APPARTEMENT: "Appartement",
+    MAISON: "Maison",
+    VILLA: "Villa",
+    TERRAIN: "Terrain",
+    LOCAL_COMMERCIAL: "Local commercial",
+    BUREAUX: "Bureaux",
+    IMMEUBLE: "Immeuble",
+    PARKING: "Parking",
+    CAVE: "Cave",
+    LOFT: "Loft",
+    ATELIER: "Atelier",
+    FERME: "Ferme",
+    CHATEAU: "Château",
+    PROPRIETE: "Propriété",
+    AUTRE: "Autre",
+  }
+  return translations[type] || type
+}
 
-export default function DashboardPage() {
+// Fonction pour traduire le statut
+function translateStatus(status: PropertyStatus): string {
+  const translations: Record<PropertyStatus, string> = {
+    DISPONIBLE: "Disponible",
+    SOUS_COMPROMIS: "Sous compromis",
+    SOUS_OFFRE: "Sous offre",
+    VENDU: "Vendu",
+    LOUE: "Loué",
+    ARCHIVE: "Archivé",
+    BROUILLON: "Brouillon",
+  }
+  return translations[status] || status
+}
+
+export default async function DashboardPage() {
+
+  const [
+    totalProperties,
+    publishedProperties,
+    sousCompromis,
+    labelsGenerated,
+    recentProperties,
+  ] = await Promise.all([
+    // Total des annonces
+    prisma.property.count(),
+    // Annonces publiées
+    prisma.property.count({
+      where: { isPublished: true },
+    }),
+    // Sous compromis
+    prisma.property.count({
+      where: { status: 'SOUS_COMPROMIS' },
+    }),
+    // Étiquettes générées (via PropertyEnergy)
+    prisma.propertyEnergy.count({
+      where: { labelGenerated: true },
+    }),
+    // 5 dernières annonces avec leurs relations (délai de 2s pour tester le skeleton)
+    prisma.property.findMany({
+      take: 5,  
+      orderBy: { createdAt: 'desc' },
+      include: {
+        location: true,
+        finance: true,
+      },
+    }),
+  ])
+
+  // Calculer les pourcentages
+  const publishedPercentage = totalProperties > 0 
+    ? Math.round((publishedProperties / totalProperties) * 100) 
+    : 0
+
+  const stats = [
+    {
+      name: "Total annonces",
+      value: totalProperties.toString(),
+      change: totalProperties === 0 ? "Aucune annonce" : `${totalProperties} annonce${totalProperties > 1 ? 's' : ''}`,
+      icon: Building2,
+    },
+    {
+      name: "Annonces publiées",
+      value: publishedProperties.toString(),
+      change: `${publishedPercentage}% du total`,
+      icon: Eye,
+    },
+    {
+      name: "Sous compromis",
+      value: sousCompromis.toString(),
+      change: sousCompromis === 0 ? "Aucun" : `${sousCompromis} bien${sousCompromis > 1 ? 's' : ''}`,
+      icon: TrendingUp,
+    },
+    {
+      name: "Étiquettes générées",
+      value: labelsGenerated.toString(),
+      change: labelsGenerated === 0 ? "Aucune étiquette" : `${labelsGenerated} étiquette${labelsGenerated > 1 ? 's' : ''}`,
+      icon: Tag,
+    },
+  ]
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -114,38 +176,63 @@ export default function DashboardPage() {
           </Link>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="space-y-3">
-            {recentProperties.map((property) => (
-              <div
-                key={property.id}
-                className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-secondary/50 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
-                    <Building2 className="h-5 w-5 text-muted-foreground" />
+          {recentProperties.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Building2 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground">Aucune annonce pour le moment</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Créez votre première annonce pour commencer
+              </p>
+              <Link href="/admin/properties/new" className="mt-4">
+                <Button variant="outline" size="sm">
+                  Créer une annonce
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentProperties.map((property) => (
+                <Link
+                  key={property.id}
+                  href={`/admin/properties/${property.id}`}
+                  className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-secondary/50 transition-colors block"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
+                      <Building2 className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">{property.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {translatePropertyType(property.propertyType)} • {property.location?.city || "Ville non renseignée"}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-foreground">{property.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {property.type} • {property.city}
+                  <div className="text-right">
+                    <p className="font-semibold text-foreground">
+                      {property.finance?.price 
+                        ? formatPrice(property.finance.price, property.transactionType)
+                        : "Prix non renseigné"
+                      }
                     </p>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                        property.status === "DISPONIBLE"
+                          ? "bg-green-50 text-green-700"
+                          : property.status === "SOUS_COMPROMIS" || property.status === "SOUS_OFFRE"
+                          ? "bg-primary/10 text-primary"
+                          : property.status === "VENDU" || property.status === "LOUE"
+                          ? "bg-gray-100 text-gray-700"
+                          : "bg-yellow-50 text-yellow-700"
+                      }`}
+                    >
+                      {translateStatus(property.status)}
+                    </span>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold text-foreground">{property.price}</p>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      property.status === "Disponible"
-                        ? "bg-green-50 text-green-700"
-                        : "bg-primary/10 text-primary"
-                    }`}
-                  >
-                    {property.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
