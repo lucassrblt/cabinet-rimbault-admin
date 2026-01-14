@@ -22,8 +22,8 @@ export default withAuth(
       }
     }
 
-    // Protection des API (sauf auth et users qui ont leur propre authentification)
-    if (pathname.startsWith("/api") && !pathname.startsWith("/api/auth") && !pathname.startsWith("/api/users")) {
+    // Protection des API (auth et users sont exclus du middleware via matcher)
+    if (pathname.startsWith("/api")) {
       if (!token) {
         return NextResponse.json(
           { error: "Vous n'êtes pas autorisé à effectuer cette action." },
@@ -39,8 +39,8 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const { pathname } = req.nextUrl
 
-        // Toujours autoriser l'accès aux pages de login, routes auth et users (qui ont leur propre auth)
-        if (pathname.startsWith("/admin/login") || pathname.startsWith("/api/auth") || pathname.startsWith("/api/users")) {
+        // Toujours autoriser l'accès à la page de login
+        if (pathname.startsWith("/admin/login")) {
           return true
         }
 
@@ -68,8 +68,10 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - api/users (utilise son propre système d'auth avec Bearer token)
+     * - api/auth (routes NextAuth)
      */
-    "/((?!_next/static|_next/image|favicon.ico|public/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|public/|api/users|api/auth).*)",
   ],
 }
 
