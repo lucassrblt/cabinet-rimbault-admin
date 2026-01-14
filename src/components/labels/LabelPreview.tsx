@@ -61,19 +61,6 @@ interface LabelPreviewProps {
   selectedPhotos?: SelectedPhoto[]
 }
 
-const typeLabels: Record<string, string> = {
-  APPARTEMENT: "APPARTEMENT",
-  MAISON: "MAISON",
-  VILLA: "VILLA",
-  TERRAIN: "TERRAIN",
-  LOCAL_COMMERCIAL: "LOCAL COMMERCIAL",
-  BUREAUX: "BUREAUX",
-  IMMEUBLE: "IMMEUBLE",
-  PARKING: "PARKING",
-  CAVE: "CAVE",
-  AUTRE: "AUTRE",
-}
-
 export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
   ({ property, primaryColor = "#780000", propertyImageUrl, selectedPhotos = [] }, ref) => {
     // Use selectedPhotos if provided, fallback to single propertyImageUrl for backwards compatibility
@@ -91,15 +78,40 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
       return null
     }
 
-    const calculateHonorairesAmount = () => {
-      if (property.honorairesType === "acquereur" && property.honorairesPct) {
-        return Math.round((property.price * property.honorairesPct) / (100 + property.honorairesPct))
+    const priceExcluding = calculatePriceExcludingFees()
+
+    // Description container height (2/3 of available right column space)
+    const DESCRIPTION_HEIGHT = 300
+    const DESCRIPTION_WIDTH = 400 // approximate width in pixels
+    const LINE_HEIGHT = 1.5
+
+    // Calculate description font size to fit within container
+    const DESCRIPTION_PADDING = 8 // padding-bottom for html2canvas rendering
+    
+    const getDescriptionFontSize = (text: string): number => {
+      const charCount = text.length
+      const availableHeight = DESCRIPTION_HEIGHT - DESCRIPTION_PADDING
+      
+      // Estimate characters per line and lines needed for different font sizes
+      // Then find the largest font size that fits
+      const fontSizes = [22, 20, 18, 16, 15, 14, 13, 12, 11, 10, 9]
+      
+      for (const fontSize of fontSizes) {
+        const charsPerLine = Math.floor(DESCRIPTION_WIDTH / (fontSize * 0.58))
+        const lineHeightPx = fontSize * LINE_HEIGHT
+        // Use available height minus padding, then subtract one line for safety
+        const maxLines = Math.floor(availableHeight / lineHeightPx) - 1
+        const maxChars = charsPerLine * maxLines
+        
+        if (charCount <= maxChars) {
+          return fontSize
+        }
       }
-      return property.honoraires
+      
+      return 9 // minimum font size
     }
 
-    const priceExcluding = calculatePriceExcludingFees()
-    const honorairesAmount = calculateHonorairesAmount()
+    const descriptionFontSize = getDescriptionFontSize(property.description)
 
     // A4 Landscape proportions: 297mm x 210mm (ratio ~1.41)
     return (
@@ -135,17 +147,9 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
           >
             A vendre
           </span>
-          <div
-            style={{
-              backgroundColor: "rgba(255,255,255,0.2)",
-              padding: "5px 12px",
-              borderRadius: "4px",
-            }}
-          >
-            <span style={{ color: "#ffffff", fontSize: "11px", fontWeight: 600 }}>
-              Réf {property.reference}
-            </span>
-          </div>
+          <span style={{ color: "#ffffff", fontSize: "9px", fontWeight: 500 }}>
+            Réf {property.reference}
+          </span>
         </div>
 
         {/* Main Content */}
@@ -155,7 +159,7 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
             {/* Property Title */}
             <div
               style={{
-                fontSize: "14px",
+                fontSize: "18px",
                 fontWeight: 700,
                 color: primaryColor,
                 marginBottom: "10px",
@@ -189,28 +193,6 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
               {!mainPhotoUrl && (
                 <span style={{ fontSize: "32px", opacity: 0.5 }}>📷 Photo du bien</span>
               )}
-              {/* Type Badge */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: "10px",
-                  left: "10px",
-                  backgroundColor: primaryColor,
-                  padding: "6px 14px",
-                  borderRadius: "4px",
-                }}
-              >
-                <span
-                  style={{
-                    color: "#ffffff",
-                    fontSize: "10px",
-                    fontWeight: 700,
-                    letterSpacing: "1px",
-                  }}
-                >
-                  {typeLabels[property.propertyType] || property.propertyType}
-                </span>
-              </div>
             </div>
 
             {/* Small Photos Row */}
@@ -240,6 +222,18 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                 )
               })}
             </div>
+
+            {/* Géorisques Notice */}
+            <div
+              style={{
+                marginTop: "10px",
+                fontSize: "7px",
+                color: "#6c757d",
+                lineHeight: 1.4,
+              }}
+            >
+              Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : www.georisques.gouv.fr
+            </div>
           </div>
 
           {/* Right Column - Info */}
@@ -247,120 +241,53 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
             style={{
               width: "50%",
               padding: "15px 20px",
-              backgroundColor: "#f8f9fa",
+              backgroundColor: "#ffffff",
               display: "flex",
               flexDirection: "column",
             }}
           >
-            {/* Price Section */}
-            <div style={{ marginBottom: "15px" }}>
-              <div style={{ fontSize: "10px", color: "#6c757d", marginBottom: "4px" }}>
-                {property.transactionType === "LOCATION" ? "Loyer mensuel" : "Prix de vente"}
-                {property.honorairesType === "acquereur" && " (FAI)"}
-              </div>
-              <div style={{ fontSize: "32px", fontWeight: 700, color: primaryColor }}>
-                {formatPrice(property.price)}
-                <span style={{ fontSize: "16px" }}> €</span>
-              </div>
-              {honorairesAmount && (
-                <div style={{ fontSize: "9px", color: "#6c757d", marginTop: "4px" }}>
-                  Honoraires : {honorairesAmount.toLocaleString("fr-FR")} €{" "}
-                  {property.honorairesType === "acquereur"
-                    ? `(${property.honorairesPct}% charge acquéreur)`
-                    : "(charge vendeur)"}
-                </div>
-              )}
-              {priceExcluding && (
-                <div style={{ fontSize: "10px", color: "#495057", marginTop: "4px", fontWeight: 600 }}>
-                  Prix hors honoraires : {priceExcluding.toLocaleString("fr-FR")} €
-                </div>
-              )}
-              <div
-                style={{
-                  backgroundColor: property.honorairesType === "acquereur" ? "#fff3cd" : "#d4edda",
-                  border: `1px solid ${property.honorairesType === "acquereur" ? "#ffc107" : "#28a745"}`,
-                  padding: "5px 10px",
-                  borderRadius: "4px",
-                  marginTop: "8px",
-                  display: "inline-block",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "9px",
-                    color: property.honorairesType === "acquereur" ? "#856404" : "#155724",
-                    fontWeight: 600,
-                  }}
-                >
-                  {property.honorairesType === "acquereur"
-                    ? "⚠ Honoraires à la charge de l'acquéreur"
-                    : "✓ Honoraires à la charge du vendeur"}
-                </span>
-              </div>
-            </div>
-
-            {/* Location */}
-            <div
-              style={{
-                marginBottom: "15px",
-                padding: "8px 12px",
-                backgroundColor: "#ffffff",
-                borderRadius: "6px",
-                borderLeft: `4px solid ${primaryColor}`,
-              }}
-            >
-              <div style={{ fontSize: "12px", fontWeight: 600, color: "#212529" }}>
-                {property.postalCode} {property.city}
-              </div>
-              {property.neighborhood && (
-                <div style={{ fontSize: "9px", color: "#6c757d", marginTop: "2px" }}>
-                  {property.neighborhood}
-                </div>
-              )}
-            </div>
-
             {/* Description Section */}
             <div
               style={{
-                flex: 1,
-                marginBottom: "15px",
-                display: "flex",
-                flexDirection: "column",
+                overflow: "hidden",
+                maxHeight: `${DESCRIPTION_HEIGHT}px`,
+                marginBottom: "12px",
+                paddingBottom: "8px",
               }}
             >
-              <div
+              <p
                 style={{
-                  fontSize: "10px",
-                  fontWeight: 700,
-                  color: primaryColor,
-                  marginBottom: "8px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
+                  fontSize: `${descriptionFontSize}px`,
+                  lineHeight: LINE_HEIGHT,
+                  color: "#000000",
+                  textAlign: "justify",
+                  margin: 0,
+                  fontWeight: 600,
                 }}
               >
-                Description
+                {property.description}
+              </p>
+            </div>
+
+            {/* Price Section */}
+            <div style={{ flexShrink: 0 }}>
+              <div style={{ fontSize: "28px", fontWeight: 700, color: "#780000" }}>
+                {formatPrice(property.price)} €
               </div>
-              <div
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  backgroundColor: "#ffffff",
-                  borderRadius: "6px",
-                  border: "1px solid #e9ecef",
-                }}
-              >
-                <p
-                  style={{
-                    fontSize: "12px",
-                    lineHeight: 1.6,
-                    color: "#333333",
-                    textAlign: "justify",
-                    margin: 0,
-                  }}
-                >
-                  {property.description}
-                </p>
-              </div>
+              {property.honorairesType === "acquereur" && priceExcluding ? (
+                <>
+                  <div style={{ fontSize: "9px", color: "#000000", marginTop: "4px" }}>
+                    soit {priceExcluding.toLocaleString("fr-FR")} € honoraires exclus
+                  </div>
+                  <div style={{ fontSize: "9px", color: "#000000", marginTop: "2px" }}>
+                    Honoraires de {property.honorairesPct}% TTC à la charge de l&apos;acquéreur
+                  </div>
+                </>
+              ) : (
+                <div style={{ fontSize: "9px", color: "#000000", marginTop: "4px" }}>
+                  Honoraires à la charge du vendeur
+                </div>
+              )}
             </div>
 
             {/* DPE/GES Images Section */}
@@ -370,9 +297,9 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                   display: "flex",
                   justifyContent: "center",
                   alignItems: "flex-end",
-                  gap: "20px",
+                  gap: "30px",
                   paddingTop: "10px",
-                  borderTop: "1px solid #e9ecef",
+                  marginTop: "auto",
                 }}
               >
                 {property.dpeImageUrl && (
@@ -393,7 +320,7 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                       src={property.dpeImageUrl}
                       alt="Étiquette DPE"
                       style={{
-                        height: "100px",
+                        height: "160px",
                         width: "auto",
                         objectFit: "contain",
                       }}
@@ -418,7 +345,7 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                       src={property.gesImageUrl}
                       alt="Étiquette GES"
                       style={{
-                        height: "100px",
+                        height: "160px",
                         width: "auto",
                         objectFit: "contain",
                       }}

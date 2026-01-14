@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { ArrowLeft, Save, Loader2, ImagePlus, X } from "lucide-react"
+import { ArrowLeft, Save, Loader2, ImagePlus, X, Star, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -100,6 +100,22 @@ const propertyFormSchema = z.object({
 
 export type PropertyFormData = z.infer<typeof propertyFormSchema>
 
+// Type pour les images existantes
+export interface PropertyImageData {
+  id: string
+  url: string
+  alt?: string | null
+  caption?: string | null
+  order: number
+  isMain: boolean
+  category: string
+  width?: number | null
+  height?: number | null
+  size?: number | null
+  propertyId: string
+  createdAt: string
+}
+
 // Type pour les données de l'API
 export interface PropertyApiData {
   id: string
@@ -161,6 +177,7 @@ export interface PropertyApiData {
     coprCharges?: number | null
     coprProcedure?: boolean
   } | null
+  images?: PropertyImageData[] | null
 }
 
 interface PropertyFormProps {
@@ -328,7 +345,11 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
-  const [images, setImages] = useState<File[]>([])
+  const [isUploadingImages, setIsUploadingImages] = useState(false)
+  const [newImages, setNewImages] = useState<File[]>([])
+  const [existingImages, setExistingImages] = useState<PropertyImageData[]>(
+    initialData?.images || []
+  )
 
   const defaultValues: Partial<PropertyFormData> = {
     propertyType: "APPARTEMENT",
@@ -366,6 +387,10 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
           form.setValue(key as keyof PropertyFormData, value as never)
         }
       })
+      // Mettre à jour les images existantes
+      if (initialData.images) {
+        setExistingImages(initialData.images)
+      }
     }
   }, [initialData, form])
 
@@ -387,6 +412,24 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
 
       if (!response.ok) {
         throw new Error(result.error || "Une erreur est survenue")
+      }
+
+      // Upload des nouvelles images si présentes
+      const targetPropertyId = mode === "edit" ? propertyId : result.id
+      if (newImages.length > 0 && targetPropertyId) {
+        setIsUploadingImages(true)
+        try {
+          await uploadImages(targetPropertyId, newImages)
+        } catch (uploadError) {
+          console.error("Error uploading images:", uploadError)
+          toast({
+            title: "Attention",
+            description: "L'annonce a été enregistrée mais certaines images n'ont pas pu être uploadées.",
+            variant: "destructive",
+          })
+        } finally {
+          setIsUploadingImages(false)
+        }
       }
 
       toast({
@@ -412,21 +455,131 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
     }
   }
 
+  // Fonction pour uploader les images
+  async function uploadImages(targetPropertyId: string, files: File[]) {
+    const formData = new FormData()
+    files.forEach((file) => {
+      formData.append("images", file)
+    })
+
+    const response = await fetch(`/api/properties/${targetPropertyId}/images`, {
+      method: "POST",
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || "Erreur lors de l'upload des images")
+    }
+
+    return response.json()
+  }
+
+  // Fonction pour supprimer une image existante
+  const deleteExistingImage = useCallback(async (imageId: string) => {
+    if (!propertyId) return
+
+    try {
+      const response = await fetch(
+        `/api/properties/${propertyId}/images?imageId=${imageId}`,
+        { method: "DELETE" }
+      )
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la suppression")
+      }
+
+      setExistingImages((prev) => prev.filter((img) => img.id !== imageId))
+      toast({
+        title: "Image supprimée",
+        description: "L'image a été supprimée avec succès.",
+      })
+    } catch (error) {
+      console.error("Error deleting image:", error)
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer l'image.",
+        variant: "destructive",
+      })
+    }
+  }, [propertyId, toast])
+
+  // Fonction pour définir une image comme principale
+  const setMainImage = useCallback(async (imageId: string) => {
+    if (!propertyId) return
+
+    try {
+      const response = await fetch(`/api/properties/${propertyId}/images`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageId, isMain: true }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la mise à jour")
+      }
+
+      setExistingImages((prev) =>
+        prev.map((img) => ({
+          ...img,
+          isMain: img.id === imageId,
+        }))
+      )
+      toast({
+        title: "Image principale définie",
+        description: "L'image a été définie comme image principale.",
+      })
+    } catch (error) {
+      console.error("Error setting main image:", error)
+      toast({
+        title: "Erreur",
+        description: "Impossible de définir l'image principale.",
+        variant: "destructive",
+      })
+    }
+  }, [propertyId, toast])
+
   const handleImageDrop = (e: React.DragEvent) => {
     e.preventDefault()
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"))
-    setImages(prev => [...prev, ...files])
+    const totalImages = existingImages.length + newImages.length + files.length
+    if (totalImages > 20) {
+      toast({
+        title: "Limite atteinte",
+        description: "Vous ne pouvez pas ajouter plus de 20 images au total.",
+        variant: "destructive",
+      })
+      const allowedCount = 20 - existingImages.length - newImages.length
+      if (allowedCount > 0) {
+        setNewImages(prev => [...prev, ...files.slice(0, allowedCount)])
+      }
+      return
+    }
+    setNewImages(prev => [...prev, ...files])
   }
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files).filter(f => f.type.startsWith("image/"))
-      setImages(prev => [...prev, ...files])
+      const totalImages = existingImages.length + newImages.length + files.length
+      if (totalImages > 20) {
+        toast({
+          title: "Limite atteinte",
+          description: "Vous ne pouvez pas ajouter plus de 20 images au total.",
+          variant: "destructive",
+        })
+        const allowedCount = 20 - existingImages.length - newImages.length
+        if (allowedCount > 0) {
+          setNewImages(prev => [...prev, ...files.slice(0, allowedCount)])
+        }
+        return
+      }
+      setNewImages(prev => [...prev, ...files])
     }
   }
 
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index))
+  const removeNewImage = (index: number) => {
+    setNewImages(prev => prev.filter((_, i) => i !== index))
   }
 
   return (
@@ -1371,10 +1524,14 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
                 <CardHeader className="pb-4">
                   <CardTitle className="text-base font-semibold">Photos du bien</CardTitle>
                   <CardDescription>
-                    Ajoutez jusqu&apos;à 20 photos. La première sera l&apos;image principale.
+                    Ajoutez jusqu&apos;à 20 photos. Cliquez sur l&apos;étoile pour définir l&apos;image principale.
+                    <span className="block mt-1 text-xs">
+                      {existingImages.length + newImages.length}/20 images
+                    </span>
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-6">
+                  {/* Zone de drop */}
                   <div
                     className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer"
                     onDragOver={(e) => e.preventDefault()}
@@ -1398,30 +1555,82 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
                     </p>
                   </div>
 
-                  {images.length > 0 && (
-                    <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {images.map((image, index) => (
-                        <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-border">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={URL.createObjectURL(image)}
-                            alt={`Image ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                          {index === 0 && (
-                            <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded font-medium">
-                              Principale
+                  {/* Images existantes */}
+                  {existingImages.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-foreground">Images enregistrées</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {existingImages.map((image) => (
+                          <div key={image.id} className="relative group aspect-square rounded-lg overflow-hidden border border-border">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={image.url}
+                              alt={image.alt || "Image du bien"}
+                              className="w-full h-full object-cover"
+                            />
+                            {image.isMain && (
+                              <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded font-medium flex items-center gap-1">
+                                <Star className="h-3 w-3 fill-current" />
+                                Principale
+                              </span>
+                            )}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                              {!image.isMain && (
+                                <button
+                                  type="button"
+                                  onClick={() => setMainImage(image.id)}
+                                  className="bg-white text-foreground p-2 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors"
+                                  title="Définir comme principale"
+                                >
+                                  <Star className="h-4 w-4" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => deleteExistingImage(image.id)}
+                                className="bg-white text-destructive p-2 rounded-full hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Nouvelles images (pas encore uploadées) */}
+                  {newImages.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-foreground">
+                        Nouvelles images à uploader
+                        <span className="text-muted-foreground font-normal ml-2">
+                          ({newImages.length} image{newImages.length > 1 ? "s" : ""})
+                        </span>
+                      </h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {newImages.map((image, index) => (
+                          <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-dashed border-primary/50 bg-primary/5">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={URL.createObjectURL(image)}
+                              alt={`Nouvelle image ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            <span className="absolute bottom-2 left-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded">
+                              Nouveau
                             </span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => removeImage(index)}
-                            className="absolute top-2 right-2 bg-foreground/80 text-background p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
+                            <button
+                              type="button"
+                              onClick={() => removeNewImage(index)}
+                              className="absolute top-2 right-2 bg-foreground/80 text-background p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -1483,13 +1692,13 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
             </Link>
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isUploadingImages}
               className="shadow-sm"
             >
-              {isLoading ? (
+              {isLoading || isUploadingImages ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Enregistrement...
+                  {isUploadingImages ? "Upload des images..." : "Enregistrement..."}
                 </>
               ) : (
                 <>
