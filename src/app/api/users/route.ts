@@ -2,27 +2,50 @@ import { NextRequest, NextResponse } from "next/server"
 import { hash } from "bcryptjs"
 import prisma from "@/lib/prisma"
 
-// Token secret pour protéger cette route (défini en .env)
-const ADMIN_API_TOKEN = process.env.ADMIN_API_TOKEN
-
 /**
  * Vérifie le token d'authentification admin
  */
-function verifyAdminToken(request: NextRequest): boolean {
+function verifyAdminToken(request: NextRequest): { valid: boolean; reason?: string } {
   const authHeader = request.headers.get("authorization")
   
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return false
+  // Log pour debug en production
+  console.log("[API Users] Headers reçus:", {
+    hasAuthHeader: !!authHeader,
+    authHeaderPrefix: authHeader?.substring(0, 10) + "...",
+  })
+  
+  if (!authHeader) {
+    return { valid: false, reason: "Header Authorization manquant" }
+  }
+  
+  if (!authHeader.startsWith("Bearer ")) {
+    return { valid: false, reason: "Header Authorization doit commencer par 'Bearer '" }
   }
   
   const token = authHeader.substring(7) // Retire "Bearer "
   
-  if (!ADMIN_API_TOKEN) {
-    console.error("[API] ADMIN_API_TOKEN non configuré dans .env")
-    return false
+  // Lire la variable à chaque requête (pas au niveau module)
+  const adminToken = process.env.ADMIN_API_TOKEN
+  
+  console.log("[API Users] Vérification token:", {
+    tokenLength: token.length,
+    adminTokenExists: !!adminToken,
+    adminTokenLength: adminToken?.length,
+    // Ne PAS logger les tokens complets en production !
+    tokenFirst5: token.substring(0, 5),
+    adminTokenFirst5: adminToken?.substring(0, 5),
+    match: token === adminToken,
+  })
+  
+  if (!adminToken) {
+    return { valid: false, reason: "ADMIN_API_TOKEN non configuré sur le serveur" }
   }
   
-  return token === ADMIN_API_TOKEN
+  if (token !== adminToken) {
+    return { valid: false, reason: "Token invalide" }
+  }
+  
+  return { valid: true }
 }
 
 /**
@@ -42,9 +65,11 @@ function verifyAdminToken(request: NextRequest): boolean {
 export async function POST(request: NextRequest) {
   try {
     // Vérification du token admin
-    if (!verifyAdminToken(request)) {
+    const authResult = verifyAdminToken(request)
+    if (!authResult.valid) {
+      console.log("[API Users POST] Échec auth:", authResult.reason)
       return NextResponse.json(
-        { error: "Vous n'êtes pas autorisé à effectuer cette action." },
+        { error: "Vous n'êtes pas autorisé à effectuer cette action.", debug: authResult.reason },
         { status: 401 }
       )
     }
@@ -140,9 +165,11 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Vérification du token admin
-    if (!verifyAdminToken(request)) {
+    const authResult = verifyAdminToken(request)
+    if (!authResult.valid) {
+      console.log("[API Users GET] Échec auth:", authResult.reason)
       return NextResponse.json(
-        { error: "Vous n'êtes pas autorisé à effectuer cette action." },
+        { error: "Vous n'êtes pas autorisé à effectuer cette action.", debug: authResult.reason },
         { status: 401 }
       )
     }
