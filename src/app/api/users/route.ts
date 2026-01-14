@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     // Vérification du token admin
     if (!verifyAdminToken(request)) {
       return NextResponse.json(
-        { error: "Non autorisé. Token admin invalide ou manquant." },
+        { error: "Vous n'êtes pas autorisé à effectuer cette action." },
         { status: 401 }
       )
     }
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
     // Vérification du token admin
     if (!verifyAdminToken(request)) {
       return NextResponse.json(
-        { error: "Non autorisé. Token admin invalide ou manquant." },
+        { error: "Vous n'êtes pas autorisé à effectuer cette action." },
         { status: 401 }
       )
     }

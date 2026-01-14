@@ -22,11 +22,11 @@ export default withAuth(
       }
     }
 
-    // Protection des API (sauf auth)
-    if (pathname.startsWith("/api") && !pathname.startsWith("/api/auth")) {
+    // Protection des API (sauf auth et users qui ont leur propre authentification)
+    if (pathname.startsWith("/api") && !pathname.startsWith("/api/auth") && !pathname.startsWith("/api/users")) {
       if (!token) {
         return NextResponse.json(
-          { error: "Non autorisé" },
+          { error: "Vous n'êtes pas autorisé à effectuer cette action." },
           { status: 401 }
         )
       }
@@ -39,8 +39,8 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const { pathname } = req.nextUrl
 
-        // Toujours autoriser l'accès aux pages de login et aux routes auth
-        if (pathname.startsWith("/admin/login") || pathname.startsWith("/api/auth")) {
+        // Toujours autoriser l'accès aux pages de login, routes auth et users (qui ont leur propre auth)
+        if (pathname.startsWith("/admin/login") || pathname.startsWith("/api/auth") || pathname.startsWith("/api/users")) {
           return true
         }
 
