@@ -51,6 +51,7 @@ export const BUCKETS = {
   FILES: "files", // Pour stocker les images DPE/GES générées
   DPE_IMAGES: "dpe-images",
   PROPERTY_IMAGES: "property-images",
+  DESCRIPTIVE_SHEETS: "descriptive_sheets", // Pour les fiches descriptives PDF
 } as const
 
 /**

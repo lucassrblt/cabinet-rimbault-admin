@@ -13,6 +13,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const labelFilter = searchParams.get("labelFilter")
+    const descriptiveSheetFilter = searchParams.get("descriptiveSheetFilter")
     
     const whereClause: Prisma.PropertyWhereInput = {}
     
@@ -23,6 +24,16 @@ export async function GET(request: Request) {
       whereClause.OR = [
         { energy: null },
         { energy: { labelGenerated: false } }
+      ]
+    }
+    
+    // Handle descriptive sheet filter
+    if (descriptiveSheetFilter === "generated") {
+      whereClause.energy = { ...whereClause.energy, descriptiveSheetGenerated: true }
+    } else if (descriptiveSheetFilter === "not_generated") {
+      whereClause.OR = [
+        { energy: null },
+        { energy: { descriptiveSheetGenerated: false } }
       ]
     }
     // "all" or no filter = return all properties (empty where clause)

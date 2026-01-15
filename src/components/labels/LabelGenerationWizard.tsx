@@ -143,7 +143,7 @@ interface LabelGenerationWizardProps {
 }
 
 const ENERGY_CLASSES = ["A", "B", "C", "D", "E", "F", "G"]
-const DEFAULT_COLOR = "#780000"
+const DEFAULT_COLOR = "#306fb2"
 
 // Helper function to transform nested property to flat LabelProperty format
 function toFlatLabelProperty(property: Property, overrides?: {
@@ -994,7 +994,7 @@ export function LabelGenerationWizard({
                       value={primaryColor}
                       onChange={(e) => setPrimaryColor(e.target.value)}
                       className="w-32 font-mono text-sm"
-                      placeholder="#780000"
+                      placeholder="#306fb2"
                     />
                     <Button
                       type="button"
