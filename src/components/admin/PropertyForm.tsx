@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { ArrowLeft, Save, Loader2, ImagePlus, X, Star, Trash2 } from "lucide-react"
+import { ArrowLeft, Save, Loader2, ImagePlus, X, Star, Trash2, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -399,6 +399,31 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
       }
     }
   }, [initialData, form])
+
+  // Fonction pour arrondir les honoraires à un chiffre "propre"
+  const roundToNiceNumber = (value: number): number => {
+    if (value >= 10000) {
+      return Math.round(value / 1000) * 1000 // Arrondir au millier le plus proche
+    } else if (value >= 1000) {
+      return Math.round(value / 100) * 100 // Arrondir à la centaine la plus proche
+    } else if (value >= 100) {
+      return Math.round(value / 10) * 10 // Arrondir à la dizaine la plus proche
+    }
+    return Math.round(value)
+  }
+
+  // Calculer les honoraires automatiquement quand le prix ou le pourcentage change
+  const price = form.watch("price")
+  const honorairesPct = form.watch("honorairesPct")
+  const honorairesType = form.watch("honorairesType")
+
+  useEffect(() => {
+    if (honorairesType === "acquereur" && price && honorairesPct) {
+      const calculatedHonoraires = (Number(price) * Number(honorairesPct)) / (100 + Number(honorairesPct))
+      const roundedHonoraires = roundToNiceNumber(calculatedHonoraires)
+      form.setValue("honoraires", roundedHonoraires)
+    }
+  }, [price, honorairesPct, honorairesType, form])
 
   async function onSubmit(data: PropertyFormData) {
     setIsLoading(true)
@@ -847,10 +872,10 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
                               <div className="relative">
                                 <Input 
                                   type="number" 
-                                  step="0.1" 
+                                  step="0.01" 
                                   min="0" 
                                   max="100" 
-                                  placeholder="5" 
+                                  placeholder="4.76" 
                                   {...field} 
                                   value={field.value ?? ""}
                                   onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
@@ -893,22 +918,50 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
                   {/* Affichage du calcul prix hors honoraires */}
                   {form.watch("honorairesType") === "acquereur" && form.watch("price") && form.watch("honorairesPct") && (
                     <div className="p-4 bg-muted/50 rounded-lg border border-border">
-                      <div className="grid gap-2 text-sm">
-                        <div className="flex justify-between">
+                      <div className="grid gap-3 text-sm">
+                        <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">Prix FAI (Frais d&apos;agence inclus)</span>
                           <span className="font-medium">{Number(form.watch("price")).toLocaleString("fr-FR")} €</span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center gap-4">
                           <span className="text-muted-foreground">Honoraires ({form.watch("honorairesPct")}%)</span>
-                          <span className="font-medium text-destructive">
-                            {Math.round((Number(form.watch("price")) * Number(form.watch("honorairesPct"))) / (100 + Number(form.watch("honorairesPct")))).toLocaleString("fr-FR")} €
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <FormField
+                              control={form.control}
+                              name="honoraires"
+                              render={({ field }) => (
+                                <div className="relative">
+                                  <Input
+                                    type="number"
+                                    className="w-32 pr-8 text-right font-medium text-destructive"
+                                    {...field}
+                                    value={field.value ?? ""}
+                                    onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                                  />
+                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">€</span>
+                                </div>
+                              )}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const calculatedHonoraires = (Number(form.watch("price")) * Number(form.watch("honorairesPct"))) / (100 + Number(form.watch("honorairesPct")))
+                                const roundedHonoraires = roundToNiceNumber(calculatedHonoraires)
+                                form.setValue("honoraires", roundedHonoraires)
+                              }}
+                              title="Recalculer et arrondir"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         <Separator />
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span className="font-medium">Prix hors honoraires</span>
                           <span className="font-bold text-primary">
-                            {Math.round(Number(form.watch("price")) / (1 + Number(form.watch("honorairesPct")) / 100)).toLocaleString("fr-FR")} €
+                            {(Number(form.watch("price")) - (form.watch("honoraires") ?? 0)).toLocaleString("fr-FR")} €
                           </span>
                         </div>
                       </div>

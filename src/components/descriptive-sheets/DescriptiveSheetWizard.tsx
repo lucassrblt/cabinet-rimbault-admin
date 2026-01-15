@@ -21,6 +21,8 @@ import {
   Mail,
   MapPin,
   RefreshCw,
+  Eye,
+  EyeOff,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -221,6 +223,7 @@ export function DescriptiveSheetWizard({
   const [currentStep, setCurrentStep] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState("")
+  const [showPreview, setShowPreview] = useState(true)
 
   // Step 1: Photo selection (exactly 3 photos)
   const [selectedPhotos, setSelectedPhotos] = useState<PropertyImage[]>([])
@@ -260,11 +263,11 @@ export function DescriptiveSheetWizard({
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(0)
-      // Pre-select first image (main photo)
+      // Pre-select first 3 images (sorted by main photo first, then order)
       const initialPhotos = property.images
         .slice()
         .sort((a, b) => (b.isMain ? 1 : 0) - (a.isMain ? 1 : 0) || a.order - b.order)
-        .slice(0, 1)
+        .slice(0, 3)
       setSelectedPhotos(initialPhotos)
       setDescription(property.description || "")
       setEnergyValue(property.energy?.energyValue || 0)
@@ -317,18 +320,18 @@ export function DescriptiveSheetWizard({
     }
   }
 
-  // Toggle photo selection (1 photo pour la fiche descriptive)
+  // Toggle photo selection (3 photos pour la fiche descriptive)
   const togglePhotoSelection = (image: PropertyImage) => {
     setSelectedPhotos((prev) => {
       const isSelected = prev.some((p) => p.id === image.id)
       if (isSelected) {
         return prev.filter((p) => p.id !== image.id)
-      } else if (prev.length < 1) {
-        // Sélection unique pour la fiche descriptive
-        return [image]
+      } else if (prev.length < 3) {
+        // Sélection de 3 photos pour la fiche descriptive
+        return [...prev, image]
       } else {
-        // Remplacer la photo existante
-        return [image]
+        // Maximum atteint, ne rien faire
+        return prev
       }
     })
   }
@@ -490,7 +493,7 @@ export function DescriptiveSheetWizard({
   const canProceedFromStep = (step: number): boolean => {
     switch (step) {
       case 0:
-        return selectedPhotos.length >= 1
+        return selectedPhotos.length >= 3
       case 1:
         return agencyContacts.name.length > 0 && agencyContacts.phone.length > 0
       case 2:
@@ -518,11 +521,33 @@ export function DescriptiveSheetWizard({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`max-h-[90vh] overflow-y-auto transition-all duration-300 ${showPreview && currentStep < 4 ? "max-w-6xl" : "max-w-4xl"}`}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            Fiche descriptive - {property.reference}
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Fiche descriptive - {property.reference}
+            </div>
+            {currentStep < 4 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPreview(!showPreview)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {showPreview ? (
+                  <>
+                    <EyeOff className="h-4 w-4 mr-2" />
+                    Masquer aperçu
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4 mr-2" />
+                    Afficher aperçu
+                  </>
+                )}
+              </Button>
+            )}
           </DialogTitle>
           <DialogDescription>
             {steps[currentStep]?.title}
@@ -530,6 +555,10 @@ export function DescriptiveSheetWizard({
         </DialogHeader>
 
         <StepIndicator currentStep={currentStep} steps={steps} />
+        
+        <div className={`flex gap-6 ${showPreview && currentStep < 4 ? "" : ""}`}>
+          {/* Main wizard content */}
+          <div className={`${showPreview && currentStep < 4 ? "flex-1 min-w-0" : "w-full"}`}>
 
         {/* Step 0: Photo Selection */}
         {currentStep === 0 && (
@@ -538,9 +567,9 @@ export function DescriptiveSheetWizard({
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
                 <ImageIcon className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">Sélection de la photo</h3>
+              <h3 className="text-lg font-semibold mb-2">Sélection des photos</h3>
               <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                Choisissez la photo principale qui apparaîtra sur la fiche descriptive.
+                Choisissez 3 photos qui apparaîtront sur la fiche descriptive. La photo du milieu sera mise en avant.
               </p>
             </div>
 
@@ -591,7 +620,7 @@ export function DescriptiveSheetWizard({
               {/* Right: Selected photos with order */}
               <div className="space-y-3">
                 <h4 className="font-medium text-sm flex items-center justify-between">
-                  <span>Photo sélectionnée ({selectedPhotos.length}/1)</span>
+                  <span>Photos sélectionnées ({selectedPhotos.length}/3)</span>
                   {selectedPhotos.length > 0 && (
                     <Button
                       variant="ghost"
@@ -606,59 +635,63 @@ export function DescriptiveSheetWizard({
                 
                 {selectedPhotos.length > 0 ? (
                   <div className="space-y-2">
-                    {selectedPhotos.map((photo, index) => (
-                      <div
-                        key={photo.id}
-                        className={`flex items-center gap-3 p-2 rounded-lg border ${
-                          index === 0 ? "bg-primary/5 border-primary/30" : "bg-muted/50"
-                        }`}
-                      >
-                        <div className="flex flex-col gap-0.5">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5"
-                            onClick={() => movePhoto(index, "up")}
-                            disabled={index === 0}
-                          >
-                            <ChevronUp className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5"
-                            onClick={() => movePhoto(index, "down")}
-                            disabled={index === selectedPhotos.length - 1}
-                          >
-                            <ChevronDown className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        
-                        <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={photo.url}
-                            alt={photo.alt || `Photo ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm">
-                            {index === 0 ? "📷 Photo principale" : `Photo ${index + 1}`}
-                          </div>
-                        </div>
-                        
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => removePhoto(index)}
+                    {selectedPhotos.map((photo, index) => {
+                      const positionLabels = ["📷 Gauche", "⭐ Milieu (mise en avant)", "📷 Droite"]
+                      const positionLabel = positionLabels[index] || `Photo ${index + 1}`
+                      return (
+                        <div
+                          key={photo.id}
+                          className={`flex items-center gap-3 p-2 rounded-lg border ${
+                            index === 1 ? "bg-primary/5 border-primary/30" : "bg-muted/50"
+                          }`}
                         >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
+                          <div className="flex flex-col gap-0.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5"
+                              onClick={() => movePhoto(index, "up")}
+                              disabled={index === 0}
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5"
+                              onClick={() => movePhoto(index, "down")}
+                              disabled={index === selectedPhotos.length - 1}
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          
+                          <div className={`rounded overflow-hidden flex-shrink-0 ${index === 1 ? "w-20 h-20" : "w-16 h-16"}`}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={photo.url}
+                              alt={photo.alt || `Photo ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm">
+                              {positionLabel}
+                            </div>
+                          </div>
+                          
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => removePhoto(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-muted-foreground/30 rounded-lg">
@@ -667,11 +700,11 @@ export function DescriptiveSheetWizard({
                   </div>
                 )}
 
-                {selectedPhotos.length === 0 && (
+                {selectedPhotos.length < 3 && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <p className="text-xs text-amber-700">
                       <AlertCircle className="h-3 w-3 inline mr-1" />
-                      Sélectionnez une photo principale
+                      Sélectionnez 3 photos ({3 - selectedPhotos.length} restante{3 - selectedPhotos.length > 1 ? "s" : ""})
                     </p>
                   </div>
                 )}
@@ -1019,12 +1052,12 @@ export function DescriptiveSheetWizard({
             <div className="flex items-center justify-center gap-4 p-4 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-2 text-sm">
                 <Check className="h-4 w-4 text-green-500" />
-                <span>Photo principale sélectionnée</span>
+                <span>3 photos sélectionnées</span>
               </div>
               <div className="h-4 w-px bg-border" />
               <div className="flex items-center gap-2 text-sm">
                 <Check className="h-4 w-4 text-green-500" />
-                <span>DPE/GES inclus</span>
+                <span>DPE inclus</span>
               </div>
               <div className="h-4 w-px bg-border" />
               <div className="flex items-center gap-2 text-sm">
@@ -1034,6 +1067,49 @@ export function DescriptiveSheetWizard({
             </div>
           </div>
         )}
+          </div>
+
+          {/* Mini Preview Panel */}
+          {showPreview && currentStep < 4 && (
+            <div className="w-[280px] flex-shrink-0 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Eye className="h-4 w-4" />
+                Aperçu en temps réel
+              </div>
+              <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
+                {/* A4 portrait ratio: 210mm x 297mm = 1:1.414, scaled to fit */}
+                <div 
+                  className="overflow-hidden"
+                  style={{ 
+                    width: "260px",
+                    height: "368px", // 260 * 1.414
+                  }}
+                >
+                  <div 
+                    className="origin-top-left"
+                    style={{ 
+                      transform: "scale(0.31)",
+                      width: "839px", // A4 at 96dpi = 794px, but we use the component's actual width
+                      transformOrigin: "top left"
+                    }}
+                  >
+                    <DescriptiveSheetPreview
+                      property={property}
+                      selectedPhotos={selectedPhotos}
+                      agencyContacts={agencyContacts}
+                      description={description}
+                      dpeImageUrl={getEffectiveDpeUrls().dpeImageUrl}
+                      gesImageUrl={getEffectiveDpeUrls().gesImageUrl}
+                    />
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                La fiche se met à jour en temps réel
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Hidden preview for PDF generation */}
         {currentStep === 3 && (

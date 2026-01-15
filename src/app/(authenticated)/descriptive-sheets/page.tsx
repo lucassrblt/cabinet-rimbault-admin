@@ -181,8 +181,8 @@ export default function DescriptiveSheetsPage() {
   }, [fetchProperties])
 
   const validatePropertyForSheet = (property: Property): string | null => {
-    if (property.images.length < 1) {
-      return "Au moins 1 photo est requise pour générer une fiche descriptive"
+    if (property.images.length < 3) {
+      return "Au moins 3 photos sont requises pour générer une fiche descriptive"
     }
     if (!property.description || property.description.trim().length < 50) {
       return "Une description d'au moins 50 caractères est requise"
