@@ -15,7 +15,7 @@ export default function NotFound() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
-          router.push("/admin/dashboard")
+          router.push("/dashboard")
           return 0
         }
         return prev - 1
@@ -79,7 +79,7 @@ export default function NotFound() {
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button 
-              onClick={() => router.push("/admin/dashboard")} 
+              onClick={() => router.push("/dashboard")} 
               className="shadow-sm"
             >
               <Home className="mr-2 h-4 w-4" />

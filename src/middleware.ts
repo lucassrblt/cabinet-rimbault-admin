@@ -6,19 +6,19 @@ export default withAuth(
     const { pathname } = req.nextUrl
     const token = req.nextauth.token
 
-    // Si on est sur la racine, rediriger vers /admin/login si pas connecté
-    // ou vers /admin/dashboard si connecté
+    // Si on est sur la racine, rediriger vers /dashboard si connecté
+    // ou vers /login si pas connecté
     if (pathname === "/") {
       if (token) {
-        return NextResponse.redirect(new URL("/admin/dashboard", req.url))
+        return NextResponse.redirect(new URL("/dashboard", req.url))
       }
-      return NextResponse.redirect(new URL("/admin/login", req.url))
+      return NextResponse.redirect(new URL("/login", req.url))
     }
 
-    // Vérifier que l'utilisateur a un rôle valide pour les routes admin
-    if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
+    // Routes protégées (toutes sauf /login)
+    if (!pathname.startsWith("/login") && !pathname.startsWith("/api")) {
       if (!token) {
-        return NextResponse.redirect(new URL("/admin/login", req.url))
+        return NextResponse.redirect(new URL("/login", req.url))
       }
     }
 
@@ -40,13 +40,8 @@ export default withAuth(
         const { pathname } = req.nextUrl
 
         // Toujours autoriser l'accès à la page de login
-        if (pathname.startsWith("/admin/login")) {
+        if (pathname.startsWith("/login")) {
           return true
-        }
-
-        // Pour toutes les autres routes protégées, vérifier le token
-        if (pathname.startsWith("/admin") || pathname.startsWith("/api")) {
-          return !!token
         }
 
         // Pour la racine, on laisse passer pour gérer la redirection dans middleware
@@ -54,7 +49,13 @@ export default withAuth(
           return true
         }
 
-        return true
+        // Pour toutes les autres routes protégées, vérifier le token
+        if (pathname.startsWith("/api")) {
+          return !!token
+        }
+
+        // Routes authentifiées
+        return !!token
       },
     },
   }

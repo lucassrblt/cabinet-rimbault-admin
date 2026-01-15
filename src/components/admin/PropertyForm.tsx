@@ -439,7 +439,7 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
           : `L'annonce "${data.reference}" a été créée avec succès.`,
       })
       
-      router.push("/admin/properties")
+      router.push("/properties")
       router.refresh()
     } catch (error) {
       console.error("Error submitting property:", error)
@@ -586,7 +586,7 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/admin/properties">
+        <Link href="/properties">
           <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -1685,7 +1685,7 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
 
           {/* Actions */}
           <div className="flex justify-end gap-3">
-            <Link href="/admin/properties">
+            <Link href="/properties">
               <Button type="button" variant="outline">
                 Annuler
               </Button>

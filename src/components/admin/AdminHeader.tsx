@@ -88,7 +88,7 @@ export function AdminHeader({ user }: AdminHeaderProps) {
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 className="text-destructive focus:text-destructive cursor-pointer"
-                onClick={() => signOut({ callbackUrl: "/admin/login" })}
+                onClick={() => signOut({ callbackUrl: "/login" })}
               >
                 Déconnexion
               </DropdownMenuItem>

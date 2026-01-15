@@ -1,27 +1,37 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from "next"
+import localFont from "next/font/local"
+import "./globals.css"
 
-const inter = Inter({ 
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
+const geistSans = localFont({
+  src: "./fonts/GeistVF.woff",
+  variable: "--font-geist-sans",
+  weight: "100 900",
+})
+
+const geistMono = localFont({
+  src: "./fonts/GeistMonoVF.woff",
+  variable: "--font-geist-mono",
+  weight: "100 900",
+})
 
 export const metadata: Metadata = {
-  title: "Cabinet Rimbault - Agence Immobilière",
-  description: "Votre partenaire immobilier de confiance",
-};
+  title: "Cabinet Rimbault - Administration",
+  description: "Espace d'administration du Cabinet Rimbault",
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html lang="fr">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
         {children}
       </body>
     </html>
-  );
+  )
 }
+

@@ -11,19 +11,19 @@
 @layer base {
   :root {
     /* Background & Foreground - Clean whites and grays */
-    --background: 0 0% 98%;
-    --foreground: 0 0% 12%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 13%;
     
     /* Cards with subtle shadows */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 12%;
+    --card-foreground: 0 0% 13%;
     
     /* Popovers */
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 12%;
+    --popover-foreground: 0 0% 13%;
     
     /* Primary - Deep burgundy red #780000 */
-    --primary: 0 100% 24%;
+    --primary: 0 100% 23.5%;
     --primary-foreground: 0 0% 100%;
     
     /* Secondary - Light gray */
@@ -31,11 +31,11 @@
     --secondary-foreground: 0 0% 20%;
     
     /* Muted - Soft gray */
-    --muted: 0 0% 94%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 0 0% 97%;
+    --muted-foreground: 0 0% 33%;
     
     /* Accent - Very light red tint */
-    --accent: 0 20% 96%;
+    --accent: 0 20% 97%;
     --accent-foreground: 0 100% 24%;
     
     /* Destructive */
@@ -43,8 +43,8 @@
     --destructive-foreground: 0 0% 100%;
     
     /* Borders - Subtle gray */
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
+    --border: 0 0% 92%;
+    --input: 0 0% 92%;
     --ring: 0 100% 24%;
     
     /* Charts */
@@ -54,7 +54,7 @@
     --chart-4: 0 0% 85%;
     --chart-5: 0 50% 50%;
     
-    --radius: 0.625rem;
+    --radius: 0.5rem;
   }
 
   .dark {
@@ -89,8 +89,31 @@
   * {
     @apply border-border;
   }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
   body {
     @apply bg-background text-foreground antialiased;
+  }
+  
+  /* Custom scrollbar for webkit browsers */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
   }
 }
 
@@ -103,5 +126,34 @@
   }
   .shadow-elevated {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+  
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out forwards;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }

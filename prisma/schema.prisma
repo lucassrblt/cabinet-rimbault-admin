@@ -8,7 +8,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // directUrl = env("DIRECT_URL")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -23,6 +23,22 @@ model User {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   properties Property[]
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PARAMÈTRES DE L'AGENCE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model AgencySettings {
+  id          String   @id @default("default")
+  name        String   @default("")
+  address     String   @default("")
+  city        String   @default("")
+  postalCode  String   @default("")
+  phone       String   @default("")
+  email       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -648,6 +664,11 @@ model PropertyEnergy {
   labelGeneratedAt DateTime?
   labelPdfUrl      String?
   labelColor       String?
+
+  // Fiches descriptives
+  descriptiveSheetGenerated   Boolean   @default(false)
+  descriptiveSheetGeneratedAt DateTime?
+  descriptiveSheetPdfUrl      String?
 
   // Chauffage
   heatingType        HeatingType?

@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Building2,
   Tags,
+  FileText,
   Settings,
   LogOut,
   Home,
@@ -20,23 +21,23 @@ import { SheetClose } from "@/components/ui/sheet"
 const navigation = [
   {
     name: "Tableau de bord",
-    href: "/admin/dashboard",
+    href: "/dashboard",
     icon: LayoutDashboard,
   },
   {
     name: "Annonces",
-    href: "/admin/properties",
+    href: "/properties",
     icon: Building2,
   },
   {
-    name: "Nouvelle annonce",
-    href: "/admin/properties/new",
-    icon: Plus,
+    name: "Étiquettes vitrine",
+    href: "/labels",
+    icon: Tags,
   },
   {
-    name: "Étiquettes vitrine",
-    href: "/admin/labels",
-    icon: Tags,
+    name: "Fiches descriptives",
+    href: "/descriptive-sheets",
+    icon: FileText,
   },
 ]
 
@@ -65,7 +66,7 @@ export function MobileSidebar() {
             <ul role="list" className="-mx-2 space-y-1">
               {navigation.map((item) => {
                 const isActive = pathname === item.href || 
-                  (item.href !== "/admin/dashboard" && pathname.startsWith(item.href))
+                  (item.href !== "/dashboard" && pathname.startsWith(item.href))
                 
                 return (
                   <li key={item.name}>
@@ -98,10 +99,20 @@ export function MobileSidebar() {
 
           {/* Bottom actions */}
           <li className="mt-auto">
+            {/* Nouvelle annonce - CTA Button */}
+            <SheetClose asChild>
+              <Link href="/properties/new">
+                <Button className="w-full mb-4 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg transition-all duration-200 gap-2">
+                  <Plus className="h-4 w-4" />
+                  Nouvelle annonce
+                </Button>
+              </Link>
+            </SheetClose>
+            
             <Separator className="mb-4" />
             <SheetClose asChild>
               <Link
-                href="/admin/settings"
+                href="/settings"
                 className="group flex gap-x-3 rounded-lg p-2.5 text-sm font-medium leading-6 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200"
               >
                 <Settings className="h-5 w-5 shrink-0 text-muted-foreground group-hover:text-foreground" />
@@ -111,7 +122,7 @@ export function MobileSidebar() {
             <Button
               variant="ghost"
               className="w-full justify-start gap-x-3 p-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-              onClick={() => signOut({ callbackUrl: "/admin/login" })}
+              onClick={() => signOut({ callbackUrl: "/login" })}
             >
               <LogOut className="h-5 w-5 shrink-0" />
               Déconnexion

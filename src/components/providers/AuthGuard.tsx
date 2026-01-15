@@ -20,7 +20,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     // Si la session a une erreur (token expiré), déconnecter l'utilisateur
     if (session?.error) {
       console.log("[AUTH] Session error detected:", session.error)
-      signOut({ callbackUrl: "/admin/login" })
+      signOut({ callbackUrl: "/login" })
     }
   }, [session?.error])
 
