@@ -37,30 +37,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Log file info for debugging
-    const userId = authResult.session.user.id
     console.log(`[Upload PDF] File: ${pdfFile.name}, size: ${(pdfFile.size / 1024).toFixed(2)} KB`)
-    console.log(`[Upload PDF] PropertyId: ${propertyId}, UserId: ${userId}`)
+    console.log(`[Upload PDF] PropertyId: ${propertyId}`)
 
-    // Verify property exists and belongs to user
-    const property = await prisma.property.findFirst({
-      where: { id: propertyId, userId: userId },
+    // Verify property exists
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId },
       include: { energy: true },
     })
 
     if (!property) {
-      // Debug: check if property exists at all
-      const propertyExists = await prisma.property.findUnique({
-        where: { id: propertyId },
-        select: { id: true, userId: true }
-      })
-      
-      if (!propertyExists) {
-        console.error(`[Upload PDF] Property not found: ${propertyId}`)
-        return NextResponse.json({ error: "Propriété non trouvée" }, { status: 404 })
-      } else {
-        console.error(`[Upload PDF] Property ${propertyId} belongs to ${propertyExists.userId}, not ${userId}`)
-        return NextResponse.json({ error: "Accès non autorisé à cette propriété" }, { status: 403 })
-      }
+      console.error(`[Upload PDF] Property not found: ${propertyId}`)
+      return NextResponse.json({ error: "Propriété non trouvée" }, { status: 404 })
     }
 
     console.log(`[Upload PDF] Property found: ${property.reference}`)
