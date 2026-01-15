@@ -43,7 +43,7 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user }) {
       // Première connexion : initialiser les tokens
       if (user) {
         const now = Math.floor(Date.now() / 1000)

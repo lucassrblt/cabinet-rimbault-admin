@@ -7,9 +7,6 @@ import {
   mockFullProperty,
   mockPropertyBase,
   mockPropertyFinance,
-  mockPropertyLocation,
-  mockPropertyCharacteristics,
-  mockPropertyEnergy,
 } from '../mocks/fixtures'
 
 // Import the route handlers

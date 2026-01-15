@@ -31,7 +31,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { type LabelProperty } from "@/components/labels/LabelPreview"
 import { LabelGenerationWizard } from "@/components/labels/LabelGenerationWizard"
 
 interface PropertyImage {

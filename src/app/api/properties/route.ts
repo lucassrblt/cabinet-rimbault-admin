@@ -17,9 +17,14 @@ export async function GET(request: Request) {
     
     const whereClause: Prisma.PropertyWhereInput = {}
     
+    // Build energy filter conditions
+    const energyConditions: Prisma.PropertyEnergyWhereInput = {}
+    let hasEnergyFilter = false
+    
     // Handle label filter
     if (labelFilter === "generated") {
-      whereClause.energy = { labelGenerated: true }
+      energyConditions.labelGenerated = true
+      hasEnergyFilter = true
     } else if (labelFilter === "not_generated") {
       whereClause.OR = [
         { energy: null },
@@ -29,12 +34,21 @@ export async function GET(request: Request) {
     
     // Handle descriptive sheet filter
     if (descriptiveSheetFilter === "generated") {
-      whereClause.energy = { ...whereClause.energy, descriptiveSheetGenerated: true }
+      energyConditions.descriptiveSheetGenerated = true
+      hasEnergyFilter = true
     } else if (descriptiveSheetFilter === "not_generated") {
-      whereClause.OR = [
-        { energy: null },
-        { energy: { descriptiveSheetGenerated: false } }
-      ]
+      // Only set this if no other OR condition is set
+      if (!whereClause.OR) {
+        whereClause.OR = [
+          { energy: null },
+          { energy: { descriptiveSheetGenerated: false } }
+        ]
+      }
+    }
+    
+    // Apply energy conditions if any
+    if (hasEnergyFilter) {
+      whereClause.energy = energyConditions
     }
     // "all" or no filter = return all properties (empty where clause)
 

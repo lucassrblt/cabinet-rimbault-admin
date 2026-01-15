@@ -6,11 +6,9 @@ import { setAuthenticated, resetAuthMocks } from '../mocks/auth'
 import {
   mockUploadToStorage,
   setUploadSuccess,
-  setUploadFailure,
   resetSupabaseMocks,
 } from '../mocks/supabase'
 import {
-  mockFullProperty,
   mockPropertyBase,
   mockPropertyEnergy,
   mockPropertyImages,
@@ -269,7 +267,7 @@ describe('/api/labels/generate', () => {
         }),
       })
       const response = await POST(request)
-      const data = await response.json()
+      await response.json()
 
       expect(response.status).toBe(200)
       expect(mockFetch).toHaveBeenCalledTimes(2) // DPE + GES

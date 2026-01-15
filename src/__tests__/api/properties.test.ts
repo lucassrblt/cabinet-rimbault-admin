@@ -1,5 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { NextResponse } from 'next/server'
+import { describe, it, expect, beforeEach } from 'vitest'
 
 // Import mocks (they will be hoisted)
 import { mockPrismaClient, resetPrismaMocks } from '../mocks/prisma'

@@ -272,8 +272,6 @@ export function LabelGenerationWizard({
   // Updated property for preview
   const [previewProperty, setPreviewProperty] = useState<Property>(property)
 
-  // Generated PDF blob for upload
-  const [generatedPdfBlob, setGeneratedPdfBlob] = useState<Blob | null>(null)
 
   const steps = [
     { title: "Récupération DPE/GES", icon: <Zap className="h-4 w-4" /> },
@@ -300,7 +298,6 @@ export function LabelGenerationWizard({
       setSelectedPhotos(initialPhotos)
       setPrimaryColor(property.energy?.labelColor || defaultColor)
       setPreviewProperty(property)
-      setGeneratedPdfBlob(null)
     }
   }, [isOpen, property, defaultColor])
 
@@ -430,7 +427,6 @@ export function LabelGenerationWizard({
 
         // Get PDF as blob
         const pdfBlob = pdf.output("blob")
-        setGeneratedPdfBlob(pdfBlob)
 
         // Upload PDF to Supabase
         setLoadingMessage("Upload du PDF vers Supabase...")

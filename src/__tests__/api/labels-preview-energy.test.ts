@@ -4,7 +4,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mockPrismaClient, resetPrismaMocks } from '../mocks/prisma'
 import { setAuthenticated, resetAuthMocks } from '../mocks/auth'
 import {
-  mockUploadToStorage,
   setUploadSuccess,
   setUploadFailure,
   resetSupabaseMocks,

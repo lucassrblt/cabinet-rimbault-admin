@@ -10,7 +10,6 @@ import {
   ChevronDown,
   Download,
   Edit3,
-  Eye,
   Image as ImageIcon,
   Zap,
   FileText,

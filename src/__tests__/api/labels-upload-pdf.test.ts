@@ -170,7 +170,7 @@ describe('/api/labels/upload-pdf', () => {
 
       const request = createMockRequest({ pdf: createMockFile(), propertyId: 'prop-123' })
       const response = await POST(request)
-      const data = await response.json()
+      await response.json()
 
       expect(response.status).toBe(200)
       expect(mockPrismaClient.propertyEnergy.create).toHaveBeenCalledWith({
