@@ -635,7 +635,7 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Tabs defaultValue="general" className="space-y-6">
-            <TabsList className="bg-secondary/50 p-1 h-auto">
+            <TabsList className="bg-secondary/95 p-1 h-auto">
               <TabsTrigger value="general" className="data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">
                 Informations générales
               </TabsTrigger>
