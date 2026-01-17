@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PropertyEstimationBanner } from "@/components/PropertyEstimationBanner"
-import Map, { Marker, NavigationControl } from 'react-map-gl'
+import Map, { Marker, NavigationControl } from 'react-map-gl/mapbox'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
 // ═══════════════════════════════════════════════════════════════════════════════
