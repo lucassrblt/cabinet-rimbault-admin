@@ -327,6 +327,21 @@ enum ProximityType {
   AUTRE
 }
 
+// Situation du demandeur d'estimation
+enum EvaluationSituation {
+  ACHAT
+  VENTE
+  RENSEIGNEMENT
+}
+
+// Statut de l'évaluation
+enum EvaluationStatus {
+  NOUVELLE
+  EN_COURS
+  TRAITEE
+  ARCHIVEE
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MODÈLE PRINCIPAL - PROPERTY
 // Contient les informations de base et les références vers les sous-tables
@@ -379,9 +394,9 @@ model Property {
   rooms_details PropertyRoom[]
   proximities   PropertyProximity[]
 
-  // Relation utilisateur
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
+  // Relation utilisateur (optionnelle)
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
 
   // Index pour performances
   @@index([propertyType])
@@ -807,4 +822,52 @@ model PropertyProximity {
 
   @@index([propertyId])
   @@index([type])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEMANDES D'ESTIMATION
+// Stocke les demandes d'estimation reçues via le formulaire public
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Evaluation {
+  id String @id @default(cuid())
+
+  // Étape 1: Type de bien et localisation
+  propertyType String          // Type de bien (appartement, maison, villa, etc.)
+  postalCode   String          // Code postal
+  address      String?         // Adresse complète (optionnel)
+
+  // Étape 2: Surface et caractéristiques
+  surface   String?  // Surface en m²
+  levels    String?  // Nombre de niveaux
+  rooms     String?  // Nombre de pièces
+  bedrooms  String?  // Nombre de chambres
+  bathrooms String?  // Nombre de salles de bains
+
+  // Étape 3: Informations additionnelles
+  constructionYear String?  // Année de construction
+  renovations      String?  @db.Text // Description des travaux
+  hasGarage        Boolean  @default(false)
+  hasPool          Boolean  @default(false)
+  hasGarden        Boolean  @default(false)
+  hasBalcony       Boolean  @default(false)
+  hasTerrace       Boolean  @default(false)
+
+  // Étape 4: Coordonnées du demandeur
+  situation EvaluationSituation @default(RENSEIGNEMENT)
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+
+  // Métadonnées
+  status    EvaluationStatus @default(NOUVELLE)
+  notes     String?          @db.Text // Notes internes de l'agent
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([email])
+  @@index([postalCode])
 }

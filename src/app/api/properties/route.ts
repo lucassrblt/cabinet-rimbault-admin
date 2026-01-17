@@ -14,6 +14,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const labelFilter = searchParams.get("labelFilter")
     const descriptiveSheetFilter = searchParams.get("descriptiveSheetFilter")
+    const postalCode = searchParams.get("postalCode")
+    const transactionType = searchParams.get("transactionType")
     
     const whereClause: Prisma.PropertyWhereInput = {}
     
@@ -49,6 +51,18 @@ export async function GET(request: Request) {
     // Apply energy conditions if any
     if (hasEnergyFilter) {
       whereClause.energy = energyConditions
+    }
+    
+    // Handle postal code filter
+    if (postalCode) {
+      whereClause.location = {
+        postalCode: postalCode,
+      }
+    }
+    
+    // Handle transaction type filter
+    if (transactionType) {
+      whereClause.transactionType = transactionType as any
     }
     // "all" or no filter = return all properties (empty where clause)
 

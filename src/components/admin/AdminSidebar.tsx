@@ -12,6 +12,7 @@ import {
   LogOut,
   Home,
   Plus,
+  Calculator,
 } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,11 @@ const navigation = [
     name: "Annonces",
     href: "/properties",
     icon: Building2,
+  },
+  {
+    name: "Estimations",
+    href: "/estimations",
+    icon: Calculator,
   },
   {
     name: "Étiquettes vitrine",

@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PropertyEstimationBanner } from "@/components/PropertyEstimationBanner"
+import Map, { Marker, NavigationControl } from 'react-map-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -56,6 +58,8 @@ interface PropertyData {
     dpeValue?: number
     gesClass?: string
     gesValue?: number
+    dpeImageUrl?: string | null
+    gesImageUrl?: string | null
   }
   copro?: {
     lots?: number
@@ -469,7 +473,9 @@ function FooterWireframe() {
   )
 }
 
-// Mapbox Static Map Component
+// Mapbox Interactive Map Component
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+
 function MapSection({ 
   city, 
   postalCode, 
@@ -483,10 +489,13 @@ function MapSection({
   longitude?: number
   title: string
 }) {
-  // Using a placeholder map image since we don't have Mapbox token in demo
-  const mapUrl = latitude && longitude
-    ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-l+1e4a8a(${longitude},${latitude})/${longitude},${latitude},13,0/800x400@2x?access_token=YOUR_TOKEN`
-    : null
+  // Default coordinates (center of France) if no coordinates provided
+  const defaultLat = 46.603354
+  const defaultLng = 1.888334
+  
+  const lat = latitude || defaultLat
+  const lng = longitude || defaultLng
+  const hasCoordinates = latitude && longitude
 
   return (
     <div className="space-y-4">
@@ -497,45 +506,62 @@ function MapSection({
         {postalCode} {city}
       </p>
       
-      {/* Map placeholder - In production, use actual Mapbox integration */}
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-card">
         <div className="aspect-[2/1] bg-gradient-to-br from-green-100 via-green-50 to-blue-50 relative">
-          {/* Placeholder map design */}
-          <img
-            src="https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/5.8332,45.9587,12,0/800x400?access_token=pk.eyJ1IjoicGxhY2Vob2xkZXIiLCJhIjoiY2xhY2Vob2xkZXIifQ.placeholder"
-            alt="Carte"
-            className="w-full h-full object-cover opacity-0"
-            onError={(e) => {
-              // Hide broken image
-              e.currentTarget.style.display = 'none'
-            }}
-          />
-          
-          {/* Fallback map design */}
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&auto=format&fit=crop&q=60')] bg-cover bg-center opacity-30" />
-          
-          {/* Map pin */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full">
-            <div className="relative">
-              <div className="w-10 h-10 bg-[#1e4a8a] rounded-full flex items-center justify-center shadow-lg">
-                <Home className="w-5 h-5 text-white" />
+          {MAPBOX_TOKEN ? (
+            <Map
+              initialViewState={{
+                latitude: lat,
+                longitude: lng,
+                zoom: 11, // Zoom large pour voir la zone
+              }}
+              style={{ width: '100%', height: '100%' }}
+              mapStyle="mapbox://styles/mapbox/streets-v12"
+              mapboxAccessToken={MAPBOX_TOKEN}
+              interactive={true}
+              scrollZoom={true}
+              dragPan={true}
+              dragRotate={false}
+              doubleClickZoom={true}
+              touchZoomRotate={true}
+            >
+              <NavigationControl position="top-right" />
+              
+              {hasCoordinates && (
+                <Marker latitude={lat} longitude={lng} anchor="bottom">
+                  <div className="relative animate-bounce">
+                    <div className="w-10 h-10 bg-[#1e4a8a] rounded-full flex items-center justify-center shadow-lg border-2 border-white">
+                      <Home className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#1e4a8a] rotate-45 border-r border-b border-white" />
+                  </div>
+                </Marker>
+              )}
+            </Map>
+          ) : (
+            // Fallback when no Mapbox token is configured
+            <>
+              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&auto=format&fit=crop&q=60')] bg-cover bg-center opacity-30" />
+              
+              {/* Map pin */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full">
+                <div className="relative">
+                  <div className="w-10 h-10 bg-[#1e4a8a] rounded-full flex items-center justify-center shadow-lg">
+                    <Home className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#1e4a8a] rotate-45" />
+                </div>
               </div>
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#1e4a8a] rotate-45" />
-            </div>
-          </div>
 
-          {/* Road labels */}
-          <div className="absolute bottom-20 left-20 bg-white/80 px-2 py-0.5 text-xs font-medium text-slate-600 rounded">
-            D 991
-          </div>
-          <div className="absolute top-24 right-32 bg-white/80 px-2 py-0.5 text-xs font-medium text-slate-600 rounded">
-            D 57
-          </div>
-          
-          {/* City label */}
-          <div className="absolute top-1/3 right-1/3 text-slate-700 font-semibold text-lg">
-            Seyssel
-          </div>
+              {/* Placeholder notice */}
+              <div className="absolute bottom-4 left-4 bg-white/90 px-3 py-2 rounded-lg text-sm text-slate-600">
+                <span className="font-medium">📍 {city}</span>
+                <p className="text-xs text-slate-500 mt-1">
+                  Configurez NEXT_PUBLIC_MAPBOX_TOKEN pour afficher la carte
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -674,13 +700,6 @@ export function PropertyDetailPage({
                 <div className="text-4xl lg:text-5xl font-bold text-slate-800">
                   {formatPrice(property.price)}€
                 </div>
-                <a 
-                  href="#" 
-                  className="text-[#1e4a8a] hover:underline flex items-center gap-2 pb-2"
-                >
-                  <Calculator className="h-5 w-5" />
-                  <span>Calculez vos mensualités</span>
-                </a>
               </div>
             </div>
           </div>
@@ -784,12 +803,55 @@ export function PropertyDetailPage({
             </TabsContent>
 
             <TabsContent value="diagnostics" className="mt-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 p-6">
-                <EnergyLabel type="dpe" value={property.energy.dpeClass} />
-                <EnergyLabel type="ges" value={property.energy.gesClass} />
-              </div>
+              {/* Images générées depuis l'API */}
+              {(property.energy.dpeImageUrl || property.energy.gesImageUrl) ? (
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {property.energy.dpeImageUrl && (
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-slate-700">Diagnostic de Performance Énergétique (DPE)</h4>
+                        <div className="relative aspect-[3/4] bg-slate-50 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                          <img
+                            src={property.energy.dpeImageUrl}
+                            alt="Étiquette DPE"
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        {property.energy.dpeValue && (
+                          <p className="text-sm text-slate-600 text-center">
+                            <strong>{property.energy.dpeValue}</strong> kWh/m²/an
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {property.energy.gesImageUrl && (
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-slate-700">Émissions de Gaz à Effet de Serre (GES)</h4>
+                        <div className="relative aspect-[3/4] bg-slate-50 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                          <img
+                            src={property.energy.gesImageUrl}
+                            alt="Étiquette GES"
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        {property.energy.gesValue && (
+                          <p className="text-sm text-slate-600 text-center">
+                            <strong>{property.energy.gesValue}</strong> kgCO₂/m²/an
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Fallback vers les étiquettes simplifiées si pas d'images générées */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 p-6">
+                  <EnergyLabel type="dpe" value={property.energy.dpeClass} />
+                  <EnergyLabel type="ges" value={property.energy.gesClass} />
+                </div>
+              )}
               
-              {property.energy.dpeValue && property.energy.gesValue && (
+              {property.energy.dpeValue && property.energy.gesValue && !property.energy.dpeImageUrl && !property.energy.gesImageUrl && (
                 <div className="mt-6 p-4 bg-slate-50 rounded-xl">
                   <p className="text-sm text-slate-600">
                     <strong>DPE :</strong> {property.energy.dpeValue} kWh/m²/an • 
