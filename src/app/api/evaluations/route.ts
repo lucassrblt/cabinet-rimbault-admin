@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
-import { Prisma } from "@prisma/client"
+import { Prisma, EvaluationStatus, EvaluationSituation } from "@prisma/client"
 
 export async function GET(request: Request) {
   const authResult = await requireAuth()
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
     // Filtrer par statut
     if (status && status !== "all") {
-      whereClause.status = status as any
+      whereClause.status = status as EvaluationStatus
     }
 
     // Filtrer par code postal
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
     // Filtrer par situation
     if (situation && situation !== "all") {
-      whereClause.situation = situation as any
+      whereClause.situation = situation as EvaluationSituation
     }
 
     const evaluations = await prisma.evaluation.findMany({

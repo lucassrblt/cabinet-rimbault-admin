@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
-import { Prisma } from "@prisma/client"
+import { Prisma, TransactionType } from "@prisma/client"
 
 // GET /api/properties - Liste des annonces
 export async function GET(request: Request) {
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
     
     // Handle transaction type filter
     if (transactionType) {
-      whereClause.transactionType = transactionType as any
+      whereClause.transactionType = transactionType as TransactionType
     }
     // "all" or no filter = return all properties (empty where clause)
 

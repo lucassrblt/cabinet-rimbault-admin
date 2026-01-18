@@ -6,7 +6,7 @@ import {
   getPublicPropertiesIncludeList,
   sanitizePropertiesForPublic,
 } from "@/lib/api-public-helpers"
-import { Prisma } from "@prisma/client"
+import { Prisma, TransactionType, PropertyType } from "@prisma/client"
 
 // GET /api/public/properties - Rechercher des propriétés avec filtres
 // Query params optionnels:
@@ -52,8 +52,8 @@ export async function GET(request: NextRequest) {
       // Construire les filtres
       const where: Prisma.PropertyWhereInput = {
         ...getPublicPropertiesWhere(),
-        ...(transactionType && { transactionType: transactionType as any }),
-        ...(propertyType && { propertyType: propertyType as any }),
+        ...(transactionType && { transactionType: transactionType as TransactionType }),
+        ...(propertyType && { propertyType: propertyType as PropertyType }),
         ...(postalCode || city ? {
           location: {
             ...(postalCode ? { postalCode } : {}),
