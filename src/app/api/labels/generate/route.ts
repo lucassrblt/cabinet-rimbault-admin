@@ -31,17 +31,29 @@ async function fetchEnergyImage(
   const apiUrl = `https://www.outils.immo/outils-immo.php?type=${type}&modele=${modele}&valeur=${value}&lettre=${letter.toLowerCase()}`
 
   try {
+    // Créer un objet Headers explicite pour s'assurer que les headers sont bien passés
+    const headers = new Headers()
+    headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+    headers.set('Referer', 'https://www.outils.immo/')
+    headers.set('Accept', 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8')
+    headers.set('Accept-Language', 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7')
+    headers.set('Origin', 'https://www.outils.immo')
+    
     const response = await fetch(apiUrl, {
       method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://www.outils.immo/',
-        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-      },
+      headers: headers,
+      // Désactiver le cache pour éviter les problèmes
+      cache: 'no-store',
     })
+    
     if (!response.ok) {
-      console.error(`Failed to fetch ${type} image:`, response.statusText)
+      const errorText = await response.text().catch(() => response.statusText)
+      console.error(`Failed to fetch ${type} image:`, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: errorText,
+      })
       return null
     }
     return await response.arrayBuffer()

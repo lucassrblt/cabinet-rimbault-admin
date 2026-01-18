@@ -40,19 +40,17 @@ export interface EstimationData {
  */
 export async function submitEvaluation(
   data: EstimationData
-): Promise<{ success: boolean; error?: string; data?: any }> {
+): Promise<{ success: boolean; error?: string; data?: unknown }> {
   try {
     // Construire l'URL de l'API (route locale Next.js)
     const url = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001"}/api/evaluations`;
 
     // Préparer les données en mappant hasParking à hasGarage si nécessaire
-    const payload = {
-      ...data,
-      hasGarage: data.hasGarage || data.hasParking || false, // Mapper hasParking à hasGarage
+    const { hasParking, ...restData } = data;
+    const payload: Omit<EstimationData, 'hasParking'> & { hasGarage: boolean } = {
+      ...restData,
+      hasGarage: data.hasGarage || hasParking || false, // Mapper hasParking à hasGarage
     };
-    
-    // Supprimer hasParking du payload si présent
-    delete (payload as any).hasParking;
 
     // Appeler l'API locale Next.js
     const response = await fetch(url, {

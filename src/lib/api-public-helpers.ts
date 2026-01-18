@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client"
+import { Prisma, PrismaClient } from "@prisma/client"
 
 /**
  * Filtre de base pour les propriétés visibles publiquement
@@ -53,7 +53,7 @@ export const getPublicPropertiesIncludeList = (): Prisma.PropertyInclude => {
 /**
  * Incrémente le compteur de vues d'une propriété
  */
-export async function incrementPropertyViewCount(prisma: any, propertyId: string) {
+export async function incrementPropertyViewCount(prisma: PrismaClient, propertyId: string) {
   try {
     await prisma.property.update({
       where: { id: propertyId },
@@ -68,7 +68,7 @@ export async function incrementPropertyViewCount(prisma: any, propertyId: string
 /**
  * Nettoie les données sensibles avant de les renvoyer à l'API publique
  */
-export function sanitizePropertyForPublic<T extends Record<string, any>>(property: T): T {
+export function sanitizePropertyForPublic<T extends Record<string, unknown>>(property: T): T {
   const sanitized = { ...property }
   
   // Supprimer les notes internes
@@ -90,7 +90,7 @@ export function sanitizePropertyForPublic<T extends Record<string, any>>(propert
 /**
  * Nettoie un tableau de propriétés
  */
-export function sanitizePropertiesForPublic<T extends Record<string, any>>(properties: T[]): T[] {
+export function sanitizePropertiesForPublic<T extends Record<string, unknown>>(properties: T[]): T[] {
   return properties.map(property => sanitizePropertyForPublic(property))
 }
 
