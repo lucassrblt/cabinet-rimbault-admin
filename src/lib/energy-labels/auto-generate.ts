@@ -7,6 +7,7 @@
 import { generateDpeSvg, generateGesSvg, type DpeClass, type GesClass } from './index'
 import { uploadToStorage, BUCKETS } from '@/lib/supabase'
 import { prisma } from '@/lib/prisma'
+import { EnergyClass } from '@prisma/client'
 
 interface GenerateLabelsOptions {
   propertyId: string
@@ -39,8 +40,8 @@ export async function autoGenerateEnergyLabels(
   try {
     // Validate energy class values
     const validClasses = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
-    const normalizedEnergyClass = energyClass.toUpperCase()
-    const normalizedGesClass = gesClass.toUpperCase()
+    const normalizedEnergyClass = energyClass.toUpperCase() as EnergyClass
+    const normalizedGesClass = gesClass.toUpperCase() as EnergyClass
 
     if (!validClasses.includes(normalizedEnergyClass)) {
       return {
