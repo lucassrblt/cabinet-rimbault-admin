@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { filename, contentType, propertyReference } = body
+    const { filename, propertyReference } = body
 
     if (!filename || !propertyReference) {
       return NextResponse.json(

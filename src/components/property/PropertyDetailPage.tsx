@@ -12,12 +12,12 @@ import {
   Heart, 
   Share2,
   Home,
-  Calculator,
   ChevronDown,
   Image as ImageIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -202,10 +202,11 @@ function ImageCarousel({ images, className }: { images: string[], className?: st
     <div className={cn("relative group rounded-2xl overflow-hidden bg-slate-100", className)}>
       {/* Main Image */}
       <div className="relative aspect-[4/3] w-full">
-        <img
+        <Image
           src={images[currentIndex]}
           alt={`Photo ${currentIndex + 1}`}
-          className="w-full h-full object-cover transition-opacity duration-300"
+          fill
+          className="object-cover transition-opacity duration-300"
         />
         
         {/* Photo count badge */}
@@ -321,20 +322,22 @@ function PropertyCard({ property }: { property: PropertyData }) {
         <div className="absolute top-3 right-3 z-10 flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-sm">
           <span className="text-xs text-slate-600">Présenté par</span>
           <span className="text-xs font-semibold text-slate-800">Flora</span>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-200 to-amber-400 overflow-hidden">
-            <img 
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-200 to-amber-400 overflow-hidden relative">
+            <Image 
               src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80"
               alt="Agent"
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
             />
           </div>
         </div>
         
-        <div className="aspect-[16/10] overflow-hidden">
-          <img
+        <div className="aspect-[16/10] overflow-hidden relative">
+          <Image
             src={property.images[0]}
             alt={property.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
         </div>
       </div>
@@ -811,10 +814,11 @@ export function PropertyDetailPage({
                       <div className="space-y-3">
                         <h4 className="text-sm font-semibold text-slate-700">Diagnostic de Performance Énergétique (DPE)</h4>
                         <div className="relative aspect-[3/4] bg-slate-50 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-                          <img
+                          <Image
                             src={property.energy.dpeImageUrl}
                             alt="Étiquette DPE"
-                            className="w-full h-full object-contain"
+                            fill
+                            className="object-contain"
                           />
                         </div>
                         {property.energy.dpeValue && (
@@ -828,10 +832,11 @@ export function PropertyDetailPage({
                       <div className="space-y-3">
                         <h4 className="text-sm font-semibold text-slate-700">Émissions de Gaz à Effet de Serre (GES)</h4>
                         <div className="relative aspect-[3/4] bg-slate-50 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-                          <img
+                          <Image
                             src={property.energy.gesImageUrl}
                             alt="Étiquette GES"
-                            className="w-full h-full object-contain"
+                            fill
+                            className="object-contain"
                           />
                         </div>
                         {property.energy.gesValue && (

@@ -57,8 +57,14 @@ export async function POST(
     }
 
     // Créer les entrées en base de données
+    interface ImageInput {
+      url: string
+      alt?: string
+      filename?: string
+      size?: number
+    }
     const createdImages = await Promise.all(
-      imagesToCreate.map((img: any, index: number) =>
+      imagesToCreate.map((img: ImageInput, index: number) =>
         prisma.propertyImage.create({
           data: {
             url: img.url,
