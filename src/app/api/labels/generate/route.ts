@@ -153,10 +153,11 @@ export async function POST(request: Request) {
         )
       }
 
-      // Upload DPE image to FILES bucket
-      const dpeFileName = `${property.reference}_dpe_${Date.now()}.png`
+      // Upload DPE image to PROPERTY_FILES bucket in labels folder
+      const timestamp = Date.now()
+      const dpeFileName = `${property.reference}/labels/${property.reference}_dpe_${timestamp}.png`
       const { url: uploadedDpeUrl, error: dpeError } = await uploadToStorage(
-        BUCKETS.FILES,
+        BUCKETS.PROPERTY_FILES,
         dpeFileName,
         dpeImageBuffer,
         "image/png"
@@ -167,10 +168,10 @@ export async function POST(request: Request) {
       }
       dpeUrl = uploadedDpeUrl ?? undefined
 
-      // Upload GES image to FILES bucket
-      const gesFileName = `${property.reference}_ges_${Date.now()}.png`
+      // Upload GES image to PROPERTY_FILES bucket in labels folder
+      const gesFileName = `${property.reference}/labels/${property.reference}_ges_${timestamp}.png`
       const { url: uploadedGesUrl, error: gesError } = await uploadToStorage(
-        BUCKETS.FILES,
+        BUCKETS.PROPERTY_FILES,
         gesFileName,
         gesImageBuffer,
         "image/png"

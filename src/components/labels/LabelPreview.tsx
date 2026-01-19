@@ -62,7 +62,7 @@ interface LabelPreviewProps {
 }
 
 export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
-  ({ property, primaryColor = "#780000", propertyImageUrl, selectedPhotos = [] }, ref) => {
+  ({ property, primaryColor = "#2596be", propertyImageUrl, selectedPhotos = [] }, ref) => {
     // Use selectedPhotos if provided, fallback to single propertyImageUrl for backwards compatibility
     const mainPhotoUrl = selectedPhotos.length > 0 ? selectedPhotos[0]?.url : propertyImageUrl
     const smallPhotos = selectedPhotos.slice(1, 4)
@@ -73,7 +73,7 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
 
     const calculatePriceExcludingFees = () => {
       if (property.honorairesType === "acquereur" && property.honorairesPct) {
-        return Math.round(property.price / (1 + property.honorairesPct / 100))
+        return property.price - (property.honoraires ?? 0)
       }
       return null
     }
@@ -271,7 +271,7 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
 
             {/* Price Section */}
             <div style={{ flexShrink: 0 }}>
-              <div style={{ fontSize: "28px", fontWeight: 700, color: "#780000" }}>
+              <div style={{ fontSize: "28px", fontWeight: 700, color: primaryColor }}>
                 {formatPrice(property.price)} €
               </div>
               {property.honorairesType === "acquereur" && priceExcluding ? (

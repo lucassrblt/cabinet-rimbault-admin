@@ -8,15 +8,12 @@ import {
   ChevronLeft,
   ChevronUp,
   ChevronDown,
-  RefreshCw,
   Download,
   Edit3,
   Eye,
   Palette,
   Image as ImageIcon,
-  Zap,
   FileText,
-  AlertCircle,
   X,
   GripVertical,
 } from "lucide-react"
@@ -30,13 +27,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
@@ -125,15 +115,6 @@ interface Property {
   images: PropertyImage[]
 }
 
-interface EnergyPreview {
-  dpeImageUrl: string | null
-  gesImageUrl: string | null
-  energyValue: number
-  energyClass: string
-  gesValue: number
-  gesClass: string
-}
-
 interface LabelGenerationWizardProps {
   property: Property
   isOpen: boolean
@@ -142,7 +123,6 @@ interface LabelGenerationWizardProps {
   defaultColor?: string
 }
 
-const ENERGY_CLASSES = ["A", "B", "C", "D", "E", "F", "G"]
 const DEFAULT_COLOR = "#306fb2"
 
 // Helper function to transform nested property to flat LabelProperty format
@@ -254,15 +234,6 @@ export function LabelGenerationWizard({
   const [isLoading, setIsLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState("")
 
-  // Energy values (editable)
-  const [energyValue, setEnergyValue] = useState(property.energy?.energyValue || 0)
-  const [energyClass, setEnergyClass] = useState(property.energy?.energyClass || "D")
-  const [gesValue, setGesValue] = useState(property.energy?.gesValue || 0)
-  const [gesClass, setGesClass] = useState(property.energy?.gesClass || "D")
-
-  // Preview data from API
-  const [energyPreview, setEnergyPreview] = useState<EnergyPreview | null>(null)
-
   // Photo selection (up to 4 photos in order: main + 3 small)
   const [selectedPhotos, setSelectedPhotos] = useState<PropertyImage[]>([])
   
@@ -274,8 +245,6 @@ export function LabelGenerationWizard({
 
 
   const steps = [
-    { title: "Récupération DPE/GES", icon: <Zap className="h-4 w-4" /> },
-    { title: "Vérification", icon: <Eye className="h-4 w-4" /> },
     { title: "Sélection photos", icon: <ImageIcon className="h-4 w-4" /> },
     { title: "Personnalisation", icon: <Palette className="h-4 w-4" /> },
     { title: "Génération", icon: <FileText className="h-4 w-4" /> },
@@ -285,11 +254,6 @@ export function LabelGenerationWizard({
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(0)
-      setEnergyValue(property.energy?.energyValue || 0)
-      setEnergyClass(property.energy?.energyClass || "D")
-      setGesValue(property.energy?.gesValue || 0)
-      setGesClass(property.energy?.gesClass || "D")
-      setEnergyPreview(null)
       // Pre-select main image if available, otherwise take first images
       const initialPhotos = property.images
         .slice()
@@ -301,65 +265,7 @@ export function LabelGenerationWizard({
     }
   }, [isOpen, property, defaultColor])
 
-  // Step 1: Fetch energy images
-  const fetchEnergyImages = async () => {
-    setIsLoading(true)
-    setLoadingMessage("Connexion à l'API outils.immo...")
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      setLoadingMessage("Génération de l'étiquette DPE...")
-
-      const response = await fetch("/api/labels/preview-energy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          propertyId: property.id,
-          energyValue,
-          energyClass,
-          gesValue,
-          gesClass,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Erreur lors de la récupération")
-      }
-
-      setLoadingMessage("Génération de l'étiquette GES...")
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      const data = await response.json()
-      setEnergyPreview(data.preview)
-      
-      setLoadingMessage("Upload vers Supabase...")
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      setCurrentStep(1)
-      toast({
-        title: "Étiquettes DPE/GES récupérées",
-        description: `Classe DPE : ${energyClass} (${energyValue} kWh/m²/an) • Classe GES : ${gesClass} (${gesValue} kg CO₂/m²/an)`,
-      })
-    } catch (error) {
-      console.error("Error fetching energy images:", error)
-      toast({
-        title: "Échec de la récupération",
-        description: error instanceof Error ? error.message : "Impossible de récupérer les étiquettes depuis l'API outils.immo. Vérifiez les valeurs DPE/GES.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-      setLoadingMessage("")
-    }
-  }
-
-  // Step 2: Regenerate with modified values
-  const regenerateWithNewValues = async () => {
-    await fetchEnergyImages()
-  }
-
-  // Step 3: Generate PDF
+  // Generate PDF
   const generatePDF = async () => {
     setIsLoading(true)
     setLoadingMessage("Préparation de l'étiquette...")
@@ -374,12 +280,12 @@ export function LabelGenerationWizard({
           propertyId: property.id,
           selectedPhotoIds: selectedPhotos.map((p) => p.id),
           primaryColor,
-          previewDpeUrl: energyPreview?.dpeImageUrl,
-          previewGesUrl: energyPreview?.gesImageUrl,
-          energyValue,
-          energyClass,
-          gesValue,
-          gesClass,
+          previewDpeUrl: property.energy?.dpeImageUrl,
+          previewGesUrl: property.energy?.gesImageUrl,
+          energyValue: property.energy?.energyValue,
+          energyClass: property.energy?.energyClass,
+          gesValue: property.energy?.gesValue,
+          gesClass: property.energy?.gesClass,
         }),
       })
 
@@ -451,7 +357,7 @@ export function LabelGenerationWizard({
           description: `Le fichier "etiquette_${property.reference}.pdf" a été téléchargé et sauvegardé dans votre espace.`,
         })
 
-        setCurrentStep(4)
+        setCurrentStep(2)
       }
     } catch (error) {
       console.error("Error generating PDF:", error)
@@ -467,20 +373,16 @@ export function LabelGenerationWizard({
   }
 
   const handleClose = () => {
-    if (currentStep === 4) {
+    if (currentStep === 2) {
       onComplete()
     }
     onClose()
   }
 
-  const goToPhotoSelection = () => {
-    setCurrentStep(2)
-  }
-
   const goToCustomization = () => {
     // Update preview property with current values before going to customization step
     setPreviewProperty(property)
-    setCurrentStep(3)
+    setCurrentStep(1)
   }
 
   // Toggle photo selection
@@ -529,234 +431,8 @@ export function LabelGenerationWizard({
 
         <StepIndicator currentStep={currentStep} steps={steps} />
 
-        {/* Step 0: Fetch Energy Images */}
+        {/* Step 0: Photo Selection */}
         {currentStep === 0 && (
-          <div className="space-y-6 py-4">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-                <Zap className="h-8 w-8 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Récupération des étiquettes énergie</h3>
-              <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                Nous allons récupérer les étiquettes DPE et GES depuis l&apos;API outils.immo 
-                et les stocker dans votre espace Supabase.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6 p-4 bg-muted/50 rounded-lg">
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm flex items-center gap-2">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold">
-                    DPE
-                  </span>
-                  Diagnostic de Performance Énergétique
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-muted-foreground">Valeur (kWh/m²/an)</label>
-                    <Input
-                      type="number"
-                      value={energyValue}
-                      onChange={(e) => setEnergyValue(Number(e.target.value))}
-                      min={0}
-                      max={999}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Classe</label>
-                    <Select value={energyClass} onValueChange={setEnergyClass}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ENERGY_CLASSES.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="font-medium text-sm flex items-center gap-2">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold">
-                    GES
-                  </span>
-                  Gaz à Effet de Serre
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-muted-foreground">Valeur (kg CO₂/m²/an)</label>
-                    <Input
-                      type="number"
-                      value={gesValue}
-                      onChange={(e) => setGesValue(Number(e.target.value))}
-                      min={0}
-                      max={999}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Classe</label>
-                    <Select value={gesClass} onValueChange={setGesClass}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ENERGY_CLASSES.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {isLoading && (
-              <div className="flex flex-col items-center justify-center py-6 gap-3">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground animate-pulse">{loadingMessage}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 1: Verify Energy Images */}
-        {currentStep === 1 && energyPreview && (
-          <div className="space-y-6 py-4">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 mb-4">
-                <Check className="h-8 w-8 text-green-500" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Étiquettes récupérées avec succès</h3>
-              <p className="text-muted-foreground text-sm">
-                Vérifiez que les étiquettes correspondent à vos attentes.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-8 p-6 bg-muted/50 rounded-lg">
-              <div className="text-center space-y-3">
-                <h4 className="font-medium text-sm">
-                  DPE - Classe {energyPreview.energyClass} ({energyPreview.energyValue} kWh/m²/an)
-                </h4>
-                <div className="bg-white rounded-lg p-4 border shadow-sm">
-                  {energyPreview.dpeImageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={energyPreview.dpeImageUrl}
-                      alt="Étiquette DPE"
-                      className="max-h-48 mx-auto"
-                    />
-                  ) : (
-                    <div className="h-48 flex items-center justify-center text-muted-foreground">
-                      <AlertCircle className="h-8 w-8" />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="text-center space-y-3">
-                <h4 className="font-medium text-sm">
-                  GES - Classe {energyPreview.gesClass} ({energyPreview.gesValue} kg CO₂/m²/an)
-                </h4>
-                <div className="bg-white rounded-lg p-4 border shadow-sm">
-                  {energyPreview.gesImageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={energyPreview.gesImageUrl}
-                      alt="Étiquette GES"
-                      className="max-h-48 mx-auto"
-                    />
-                  ) : (
-                    <div className="h-48 flex items-center justify-center text-muted-foreground">
-                      <AlertCircle className="h-8 w-8" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Edit values section */}
-            <div className="p-4 border rounded-lg bg-amber-50 border-amber-200">
-              <h4 className="font-medium text-sm flex items-center gap-2 text-amber-800 mb-3">
-                <Edit3 className="h-4 w-4" />
-                Modifier les valeurs
-              </h4>
-              <div className="grid grid-cols-4 gap-3">
-                <div>
-                  <label className="text-xs text-amber-700">DPE Valeur</label>
-                  <Input
-                    type="number"
-                    value={energyValue}
-                    onChange={(e) => setEnergyValue(Number(e.target.value))}
-                    min={0}
-                    max={999}
-                    className="bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-amber-700">DPE Classe</label>
-                  <Select value={energyClass} onValueChange={setEnergyClass}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ENERGY_CLASSES.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-xs text-amber-700">GES Valeur</label>
-                  <Input
-                    type="number"
-                    value={gesValue}
-                    onChange={(e) => setGesValue(Number(e.target.value))}
-                    min={0}
-                    max={999}
-                    className="bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-amber-700">GES Classe</label>
-                  <Select value={gesClass} onValueChange={setGesClass}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ENERGY_CLASSES.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={regenerateWithNewValues}
-                disabled={isLoading}
-                className="mt-3"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-                Regénérer avec les nouvelles valeurs
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Photo Selection */}
-        {currentStep === 2 && (
           <div className="space-y-6 py-4">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
@@ -926,8 +602,8 @@ export function LabelGenerationWizard({
           </div>
         )}
 
-        {/* Step 3: Customization */}
-        {currentStep === 3 && (
+        {/* Step 1: Customization */}
+        {currentStep === 1 && (
           <div className="space-y-6 py-4">
             <div className="grid grid-cols-2 gap-6">
               {/* Left: Options */}
@@ -965,7 +641,7 @@ export function LabelGenerationWizard({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentStep(2)}
+                    onClick={() => setCurrentStep(0)}
                   >
                     <Edit3 className="h-3 w-3 mr-2" />
                     Modifier la sélection
@@ -1011,8 +687,8 @@ export function LabelGenerationWizard({
                 <div className="p-4 bg-muted/50 rounded-lg text-sm">
                   <p className="font-medium mb-2">Récapitulatif :</p>
                   <ul className="space-y-1 text-muted-foreground">
-                    <li>• DPE : {energyClass} ({energyValue} kWh/m²/an)</li>
-                    <li>• GES : {gesClass} ({gesValue} kg CO₂/m²/an)</li>
+                    <li>• DPE : {property.energy?.energyClass || "N/A"} ({property.energy?.energyValue || 0} kWh/m²/an)</li>
+                    <li>• GES : {property.energy?.gesClass || "N/A"} ({property.energy?.gesValue || 0} kg CO₂/m²/an)</li>
                     <li>
                       • Honoraires :{" "}
                       {property.finance?.honorairesType === "acquereur"
@@ -1032,14 +708,7 @@ export function LabelGenerationWizard({
                 <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
                   <div className="transform scale-[0.4] origin-top-left" style={{ width: "250%", height: "252px" }}>
                     <LabelPreview
-                      property={toFlatLabelProperty(previewProperty, {
-                        energyValue,
-                        energyClass,
-                        gesValue,
-                        gesClass,
-                        dpeImageUrl: energyPreview?.dpeImageUrl,
-                        gesImageUrl: energyPreview?.gesImageUrl,
-                      })}
+                      property={toFlatLabelProperty(previewProperty)}
                       primaryColor={primaryColor}
                       selectedPhotos={selectedPhotos}
                     />
@@ -1052,14 +721,7 @@ export function LabelGenerationWizard({
             <div className="fixed left-[-9999px] top-0">
               <LabelPreview
                 ref={labelRef}
-                property={toFlatLabelProperty(previewProperty, {
-                  energyValue,
-                  energyClass,
-                  gesValue,
-                  gesClass,
-                  dpeImageUrl: energyPreview?.dpeImageUrl,
-                  gesImageUrl: energyPreview?.gesImageUrl,
-                })}
+                property={toFlatLabelProperty(previewProperty)}
                 primaryColor={primaryColor}
                 selectedPhotos={selectedPhotos}
               />
@@ -1074,8 +736,8 @@ export function LabelGenerationWizard({
           </div>
         )}
 
-        {/* Step 4: Complete */}
-        {currentStep === 4 && (
+        {/* Step 2: Complete */}
+        {currentStep === 2 && (
           <div className="space-y-6 py-8">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-500/10 mb-4">
@@ -1107,41 +769,6 @@ export function LabelGenerationWizard({
               <Button variant="outline" onClick={handleClose}>
                 Annuler
               </Button>
-              <Button onClick={fetchEnergyImages} disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Récupération...
-                  </>
-                ) : (
-                  <>
-                    Récupérer les étiquettes
-                    <ChevronRight className="h-4 w-4 ml-2" />
-                  </>
-                )}
-              </Button>
-            </>
-          )}
-
-          {currentStep === 1 && (
-            <>
-              <Button variant="outline" onClick={() => setCurrentStep(0)}>
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Retour
-              </Button>
-              <Button onClick={goToPhotoSelection} disabled={isLoading}>
-                C&apos;est bon, continuer
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </Button>
-            </>
-          )}
-
-          {currentStep === 2 && (
-            <>
-              <Button variant="outline" onClick={() => setCurrentStep(1)}>
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Retour
-              </Button>
               <Button onClick={goToCustomization} disabled={selectedPhotos.length === 0 && property.images.length > 0}>
                 Continuer
                 <ChevronRight className="h-4 w-4 ml-2" />
@@ -1149,9 +776,9 @@ export function LabelGenerationWizard({
             </>
           )}
 
-          {currentStep === 3 && (
+          {currentStep === 1 && (
             <>
-              <Button variant="outline" onClick={() => setCurrentStep(2)}>
+              <Button variant="outline" onClick={() => setCurrentStep(0)}>
                 <ChevronLeft className="h-4 w-4 mr-2" />
                 Retour
               </Button>
@@ -1171,7 +798,7 @@ export function LabelGenerationWizard({
             </>
           )}
 
-          {currentStep === 4 && (
+          {currentStep === 2 && (
             <Button onClick={handleClose}>
               <Check className="h-4 w-4 mr-2" />
               Terminer

@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/api-auth"
 
 /**
  * POST /api/labels/upload-pdf
- * Upload a generated PDF label to the 'labels' bucket
+ * Upload a generated PDF label to the 'property-files' bucket under [reference]/labels/
  */
 export async function POST(request: Request) {
   // Vérification de l'authentification
@@ -51,13 +51,13 @@ export async function POST(request: Request) {
     // Convert File to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer()
 
-    // Generate filename with timestamp
+    // Generate filename with timestamp in property-files/[reference]/labels/
     const timestamp = Date.now()
-    const pdfFileName = `${property.reference}_etiquette_${timestamp}.pdf`
+    const pdfFileName = `${property.reference}/labels/${property.reference}_etiquette_${timestamp}.pdf`
 
-    // Upload PDF to 'labels' bucket
+    // Upload PDF to 'property-files' bucket in labels folder
     const { url: pdfUrl, error: uploadError } = await uploadToStorage(
-      BUCKETS.LABELS,
+      BUCKETS.PROPERTY_FILES,
       pdfFileName,
       arrayBuffer,
       "application/pdf"

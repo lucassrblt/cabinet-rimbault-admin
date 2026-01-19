@@ -76,9 +76,9 @@ export async function autoGenerateEnergyLabels(
 
     // Generate unique filenames with timestamp
     const timestamp = Date.now()
-    // Stocker dans property-files/{reference}/file/
-    const dpeFileName = `${reference}/file/${reference}_dpe_${timestamp}.svg`
-    const gesFileName = `${reference}/file/${reference}_ges_${timestamp}.svg`
+    // Stocker dans property-files/{reference}/labels/
+    const dpeFileName = `${reference}/labels/${reference}_dpe_${timestamp}.svg`
+    const gesFileName = `${reference}/labels/${reference}_ges_${timestamp}.svg`
 
     console.log(`[Auto-generate] Uploading DPE image: ${dpeFileName} (${dpeBuffer.length} bytes)`)
     console.log(`[Auto-generate] Uploading GES image: ${gesFileName} (${gesBuffer.length} bytes)`)

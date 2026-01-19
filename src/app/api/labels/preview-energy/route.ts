@@ -15,7 +15,7 @@ interface PreviewEnergyRequest {
 /**
  * POST /api/labels/preview-energy
  * Preview DPE/GES images before generating the final label
- * Generates SVG labels locally and stores them in the 'files' bucket
+ * Generates SVG labels locally and stores them in the 'property-files' bucket under [reference]/labels/
  */
 export async function POST(request: Request) {
   // Vérification de l'authentification
@@ -100,17 +100,17 @@ export async function POST(request: Request) {
     )
     const gesBuffer = Buffer.from(gesSvg, 'utf-8')
 
-    // Generate unique filenames with timestamp
+    // Generate unique filenames with timestamp in property-files/[reference]/labels/
     const timestamp = Date.now()
-    const dpeFileName = `files/${property.reference}/dpe/${property.reference}_dpe_${timestamp}.svg`
-    const gesFileName = `files/${property.reference}/ges/${property.reference}_ges_${timestamp}.svg`
+    const dpeFileName = `${property.reference}/labels/${property.reference}_dpe_${timestamp}.svg`
+    const gesFileName = `${property.reference}/labels/${property.reference}_ges_${timestamp}.svg`
 
     console.log(`Uploading DPE image: ${dpeFileName} (${dpeBuffer.length} bytes)`)
     console.log(`Uploading GES image: ${gesFileName} (${gesBuffer.length} bytes)`)
 
-    // Upload DPE image to 'files' bucket
+    // Upload DPE image to 'property-files' bucket in labels folder
     const { url: dpeUrl, error: dpeError } = await uploadToStorage(
-      BUCKETS.FILES,
+      BUCKETS.PROPERTY_FILES,
       dpeFileName,
       dpeBuffer,
       'image/svg+xml'
@@ -126,9 +126,9 @@ export async function POST(request: Request) {
 
     console.log(`DPE image uploaded successfully: ${dpeUrl}`)
 
-    // Upload GES image to 'files' bucket
+    // Upload GES image to 'property-files' bucket in labels folder
     const { url: gesUrl, error: gesError } = await uploadToStorage(
-      BUCKETS.FILES,
+      BUCKETS.PROPERTY_FILES,
       gesFileName,
       gesBuffer,
       'image/svg+xml'
