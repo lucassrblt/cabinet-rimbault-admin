@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
-import { uploadToStorage, deleteFromStorage, BUCKETS } from "@/lib/supabase"
+import { deleteFromStorage, BUCKETS } from "@/lib/supabase"
 
-// POST /api/properties/[id]/images - Upload des images pour une propriété
+// Augmenter le timeout pour les opérations multiples (60 secondes)
+export const maxDuration = 60
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+// POST /api/properties/[id]/images - Créer les entrées en base après upload direct
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -15,6 +20,15 @@ export async function POST(
 
   try {
     const { id } = await params
+    const body = await request.json()
+    const { images } = body
+
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return NextResponse.json(
+        { error: "Aucune image fournie" },
+        { status: 400 }
+      )
+    }
 
     // Vérifier que la propriété existe
     const property = await prisma.property.findUnique({
@@ -29,79 +43,47 @@ export async function POST(
       )
     }
 
-    const formData = await request.formData()
-    const files = formData.getAll("images") as File[]
-
-    if (!files || files.length === 0) {
-      return NextResponse.json(
-        { error: "Aucune image fournie" },
-        { status: 400 }
-      )
-    }
-
-    // Limiter à 20 images
     const existingImagesCount = property.images.length
-    const maxNewImages = 20 - existingImagesCount
-    const filesToUpload = files.slice(0, maxNewImages)
-
-    if (filesToUpload.length < files.length) {
-      console.warn(
-        `Limite de 20 images atteinte. ${files.length - filesToUpload.length} images ignorées.`
-      )
-    }
-
-    const uploadedImages = []
     const startOrder = existingImagesCount
 
-    for (let i = 0; i < filesToUpload.length; i++) {
-      const file = filesToUpload[i]
-      
-      // Générer un nom unique pour le fichier
-      const timestamp = Date.now()
-      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_")
-      const fileName = `${timestamp}-${sanitizedName}`
-      const filePath = `properties/${id}/${fileName}`
+    // Limiter à 20 images total
+    const maxNewImages = 20 - existingImagesCount
+    const imagesToCreate = images.slice(0, maxNewImages)
 
-      // Convertir le fichier en buffer
-      const buffer = Buffer.from(await file.arrayBuffer())
-
-      // Upload vers Supabase
-      const { url, error } = await uploadToStorage(
-        BUCKETS.PROPERTY_IMAGES,
-        filePath,
-        buffer,
-        file.type
+    if (imagesToCreate.length < images.length) {
+      console.warn(
+        `Limite de 20 images atteinte. ${images.length - imagesToCreate.length} images ignorées.`
       )
-
-      if (error || !url) {
-        console.error(`Erreur upload image ${file.name}:`, error)
-        continue
-      }
-
-      // Créer l'entrée en base de données
-      const image = await prisma.propertyImage.create({
-        data: {
-          url,
-          alt: file.name.replace(/\.[^/.]+$/, ""), // Nom sans extension
-          order: startOrder + i,
-          isMain: existingImagesCount === 0 && i === 0, // Première image = principale
-          propertyId: id,
-          size: file.size,
-        },
-      })
-
-      uploadedImages.push(image)
     }
+
+    // Créer les entrées en base de données
+    const createdImages = await Promise.all(
+      imagesToCreate.map((img: any, index: number) =>
+        prisma.propertyImage.create({
+          data: {
+            url: img.url,
+            alt: img.alt || img.filename?.replace(/\.[^/.]+$/, "") || "",
+            order: startOrder + index,
+            isMain: existingImagesCount === 0 && index === 0,
+            propertyId: id,
+            size: img.size || 0,
+          },
+        })
+      )
+    )
 
     return NextResponse.json({
       success: true,
-      uploaded: uploadedImages.length,
-      images: uploadedImages,
+      uploaded: createdImages.length,
+      images: createdImages,
     })
   } catch (error) {
-    console.error("Error uploading images:", error)
+    console.error("Error creating image records:", error)
     return NextResponse.json(
-      { error: "Erreur lors de l'upload des images" },
+      {
+        error: "Erreur lors de la création des images",
+        details: error instanceof Error ? error.message : "Erreur inconnue",
+      },
       { status: 500 }
     )
   }
@@ -170,11 +152,30 @@ export async function DELETE(
     }
 
     // Extraire le chemin du fichier depuis l'URL
-    const urlParts = image.url.split(`${BUCKETS.PROPERTY_IMAGES}/`)
-    if (urlParts.length > 1) {
-      const filePath = urlParts[1]
+    // Support des deux buckets (ancien et nouveau) pour compatibilité
+    let filePath: string | null = null
+    let bucket: string = BUCKETS.PROPERTY_FILES
+    
+    if (image.url.includes(BUCKETS.PROPERTY_FILES)) {
+      const urlParts = image.url.split(`${BUCKETS.PROPERTY_FILES}/`)
+      if (urlParts.length > 1) {
+        filePath = urlParts[1].split('?')[0]
+        bucket = BUCKETS.PROPERTY_FILES
+      }
+    } else if (image.url.includes(BUCKETS.PROPERTY_IMAGES)) {
+      const urlParts = image.url.split(`${BUCKETS.PROPERTY_IMAGES}/`)
+      if (urlParts.length > 1) {
+        filePath = urlParts[1].split('?')[0]
+        bucket = BUCKETS.PROPERTY_IMAGES
+      }
+    }
+    
+    if (filePath) {
       // Supprimer le fichier de Supabase
-      await deleteFromStorage(BUCKETS.PROPERTY_IMAGES, filePath)
+      const deleteResult = await deleteFromStorage(bucket, filePath)
+      if (!deleteResult.success && deleteResult.error) {
+        console.error(`Erreur suppression fichier ${filePath}:`, deleteResult.error)
+      }
     }
 
     // Supprimer l'entrée en base de données
@@ -268,4 +269,3 @@ export async function PATCH(
     )
   }
 }
-

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { uploadToStorage, BUCKETS } from "@/lib/supabase"
 import { requireAuth } from "@/lib/api-auth"
+import { generateDpeSvg, generateGesSvg, type DpeClass, type GesClass } from "@/lib/energy-labels"
 
 interface PreviewEnergyRequest {
   propertyId: string
@@ -11,74 +12,10 @@ interface PreviewEnergyRequest {
   gesClass?: string
 }
 
-interface EnergyImageResult {
-  buffer: Buffer
-  contentType: string
-}
-
-/**
- * Fetch DPE or GES image from outils.immo API
- */
-async function fetchEnergyImage(
-  type: "dpe" | "ges",
-  value: number,
-  letter: string
-): Promise<EnergyImageResult> {
-  const modele = "2021"
-  const apiUrl = `https://www.outils.immo/outils-immo.php?type=${type}&modele=${modele}&valeur=${value}&lettre=${letter.toLowerCase()}`
-
-  console.log(`Fetching ${type} image from: ${apiUrl}`)
-
-  // Créer un objet Headers explicite pour s'assurer que les headers sont bien passés
-  const headers = new Headers()
-  headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-  headers.set('Referer', 'https://www.outils.immo/')
-  headers.set('Accept', 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8')
-  headers.set('Accept-Language', 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7')
-  headers.set('Origin', 'https://www.outils.immo')
-  
-  // Log des headers pour le débogage
-  console.log(`Headers for ${type} request:`, Object.fromEntries(headers.entries()))
-
-  const response = await fetch(apiUrl, {
-    method: 'GET',
-    headers: headers,
-    // Désactiver le cache pour éviter les problèmes
-    cache: 'no-store',
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => response.statusText)
-    console.error(`Error response for ${type}:`, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
-      body: errorText,
-    })
-    throw new Error(`Erreur API outils.immo: ${response.status} ${response.statusText}`)
-  }
-
-  // Récupérer l'image
-  const imageBuffer = await response.arrayBuffer()
-  const contentType = response.headers.get('content-type') || 'image/png'
-
-  console.log(`${type} image fetched: ${imageBuffer.byteLength} bytes, content-type: ${contentType}`)
-
-  if (imageBuffer.byteLength === 0) {
-    throw new Error(`Image ${type} vide reçue de l'API`)
-  }
-
-  // Convertir ArrayBuffer en Buffer Node.js pour l'upload
-  return {
-    buffer: Buffer.from(imageBuffer),
-    contentType,
-  }
-}
-
 /**
  * POST /api/labels/preview-energy
  * Preview DPE/GES images before generating the final label
- * Stores images in the 'files' bucket
+ * Generates SVG labels locally and stores them in the 'files' bucket
  */
 export async function POST(request: Request) {
   // Vérification de l'authentification
@@ -127,47 +64,56 @@ export async function POST(request: Request) {
       )
     }
 
-    // Fetch DPE and GES images from external API
-    let dpeImage: EnergyImageResult
-    let gesImage: EnergyImageResult
+    // Validate class values
+    const validClasses = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+    const normalizedEnergyClass = finalEnergyClass.toUpperCase()
+    const normalizedGesClass = finalGesClass.toUpperCase()
 
-    try {
-      dpeImage = await fetchEnergyImage("dpe", finalEnergyValue, finalEnergyClass)
-    } catch (error) {
-      console.error("Error fetching DPE image:", error)
+    if (!validClasses.includes(normalizedEnergyClass)) {
       return NextResponse.json(
-        { error: `Impossible de récupérer l'image DPE: ${error instanceof Error ? error.message : 'Erreur inconnue'}` },
-        { status: 500 }
+        { error: `Classe DPE invalide: ${finalEnergyClass}. Valeurs acceptées: A, B, C, D, E, F, G` },
+        { status: 400 }
       )
     }
 
-    try {
-      gesImage = await fetchEnergyImage("ges", finalGesValue, finalGesClass)
-    } catch (error) {
-      console.error("Error fetching GES image:", error)
+    if (!validClasses.includes(normalizedGesClass)) {
       return NextResponse.json(
-        { error: `Impossible de récupérer l'image GES: ${error instanceof Error ? error.message : 'Erreur inconnue'}` },
-        { status: 500 }
+        { error: `Classe GES invalide: ${finalGesClass}. Valeurs acceptées: A, B, C, D, E, F, G` },
+        { status: 400 }
       )
     }
+
+    // Generate DPE SVG locally
+    console.log(`Generating DPE label: Class ${normalizedEnergyClass}, Value ${finalEnergyValue} kWh/m²/an`)
+    const dpeSvg = generateDpeSvg(
+      finalEnergyValue,
+      normalizedEnergyClass as DpeClass,
+      finalGesValue
+    )
+    const dpeBuffer = Buffer.from(dpeSvg, 'utf-8')
+
+    // Generate GES SVG locally
+    console.log(`Generating GES label: Class ${normalizedGesClass}, Value ${finalGesValue} kg CO₂/m²/an`)
+    const gesSvg = generateGesSvg(
+      finalGesValue,
+      normalizedGesClass as GesClass
+    )
+    const gesBuffer = Buffer.from(gesSvg, 'utf-8')
 
     // Generate unique filenames with timestamp
     const timestamp = Date.now()
-    // Déterminer l'extension à partir du content-type
-    const dpeExtension = dpeImage.contentType.includes('svg') ? 'svg' : 'png'
-    const gesExtension = gesImage.contentType.includes('svg') ? 'svg' : 'png'
-    const dpeFileName = `dpe/${property.reference}_dpe_${timestamp}.${dpeExtension}`
-    const gesFileName = `ges/${property.reference}_ges_${timestamp}.${gesExtension}`
+    const dpeFileName = `files/${property.reference}/dpe/${property.reference}_dpe_${timestamp}.svg`
+    const gesFileName = `files/${property.reference}/ges/${property.reference}_ges_${timestamp}.svg`
 
-    console.log(`Uploading DPE image: ${dpeFileName} (${dpeImage.buffer.length} bytes)`)
-    console.log(`Uploading GES image: ${gesFileName} (${gesImage.buffer.length} bytes)`)
+    console.log(`Uploading DPE image: ${dpeFileName} (${dpeBuffer.length} bytes)`)
+    console.log(`Uploading GES image: ${gesFileName} (${gesBuffer.length} bytes)`)
 
     // Upload DPE image to 'files' bucket
     const { url: dpeUrl, error: dpeError } = await uploadToStorage(
       BUCKETS.FILES,
       dpeFileName,
-      dpeImage.buffer,
-      dpeImage.contentType
+      dpeBuffer,
+      'image/svg+xml'
     )
 
     if (dpeError) {
@@ -184,8 +130,8 @@ export async function POST(request: Request) {
     const { url: gesUrl, error: gesError } = await uploadToStorage(
       BUCKETS.FILES,
       gesFileName,
-      gesImage.buffer,
-      gesImage.contentType
+      gesBuffer,
+      'image/svg+xml'
     )
 
     if (gesError) {
@@ -205,9 +151,9 @@ export async function POST(request: Request) {
         dpeImageUrl: dpeUrl,
         gesImageUrl: gesUrl,
         energyValue: finalEnergyValue,
-        energyClass: finalEnergyClass,
+        energyClass: normalizedEnergyClass,
         gesValue: finalGesValue,
-        gesClass: finalGesClass,
+        gesClass: normalizedGesClass,
       },
       property: {
         id: property.id,

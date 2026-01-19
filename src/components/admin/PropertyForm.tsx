@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { ArrowLeft, Save, Loader2, ImagePlus, X, Star, Trash2, RefreshCw } from "lucide-react"
+import { ArrowLeft, ArrowRight, Save, Loader2, ImagePlus, X, Star, Trash2, RefreshCw, MapPin } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,9 +27,71 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
+import { autoGenerateEnergyLabels } from "@/lib/energy-labels"
+
+// Types pour l'API d'adresses gouvernementale
+interface AddressSuggestion {
+  label: string
+  housenumber?: string
+  street?: string
+  postcode: string
+  city: string
+  context: string
+  x: number
+  y: number
+}
+
+interface AddressApiResponse {
+  features: Array<{
+    properties: {
+      label: string
+      housenumber?: string
+      street?: string
+      postcode: string
+      city: string
+      context: string
+      x: number
+      y: number
+    }
+  }>
+}
+
+// Hook personnalisé pour le debounce
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(handler)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
+
+// Définition des étapes du formulaire
+const FORM_STEPS = [
+  { id: "general", label: "Informations générales", shortLabel: "Général" },
+  { id: "details", label: "Détails du bien", shortLabel: "Détails" },
+  { id: "dpe", label: "DPE & Énergie", shortLabel: "DPE" },
+  { id: "images", label: "Images", shortLabel: "Images" },
+] as const
+
+type StepId = typeof FORM_STEPS[number]["id"]
+
+// Champs requis par étape pour la validation
+const STEP_REQUIRED_FIELDS: Record<StepId, (keyof PropertyFormData)[]> = {
+  general: ["reference", "title", "description", "propertyType", "transactionType", "status", "price", "address", "postalCode", "city"],
+  details: ["surface", "rooms"],
+  dpe: [],
+  images: [],
+}
 
 // Schéma de validation
 const propertyFormSchema = z.object({
@@ -356,6 +418,20 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
   const [existingImages, setExistingImages] = useState<PropertyImageData[]>(
     initialData?.images || []
   )
+  
+  // État pour la navigation par étapes
+  const [currentStep, setCurrentStep] = useState<number>(0)
+  
+  // État pour l'autocomplétion d'adresse
+  const [addressQuery, setAddressQuery] = useState("")
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([])
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(false)
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false)
+  const addressInputRef = useRef<HTMLInputElement>(null)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+  
+  // Debounce de la recherche d'adresse
+  const debouncedAddressQuery = useDebounce(addressQuery, 300)
 
   const defaultValues: Partial<PropertyFormData> = {
     propertyType: "APPARTEMENT",
@@ -397,8 +473,171 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
       if (initialData.images) {
         setExistingImages(initialData.images)
       }
+      // Initialiser le champ d'adresse pour l'autocomplétion
+      if (initialData.location?.address) {
+        setAddressQuery(initialData.location.address)
+      }
     }
   }, [initialData, form])
+
+  // Synchroniser addressQuery avec la valeur du formulaire
+  const watchedAddress = form.watch("address")
+  useEffect(() => {
+    if (watchedAddress && watchedAddress !== addressQuery) {
+      setAddressQuery(watchedAddress)
+    }
+  }, [watchedAddress]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Recherche d'adresses avec l'API gouvernementale
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      // Ne pas lancer la recherche si moins de 3 caractères
+      if (debouncedAddressQuery.length < 3) {
+        setAddressSuggestions([])
+        return
+      }
+
+      setIsLoadingAddresses(true)
+      try {
+        const response = await fetch(
+          `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(debouncedAddressQuery)}&limit=5`
+        )
+        const data: AddressApiResponse = await response.json()
+        
+        const suggestions: AddressSuggestion[] = data.features.map((feature) => ({
+          label: feature.properties.label,
+          housenumber: feature.properties.housenumber,
+          street: feature.properties.street,
+          postcode: feature.properties.postcode,
+          city: feature.properties.city,
+          context: feature.properties.context,
+          x: feature.properties.x,
+          y: feature.properties.y,
+        }))
+        
+        setAddressSuggestions(suggestions)
+      } catch (error) {
+        console.error("Erreur lors de la recherche d'adresses:", error)
+        setAddressSuggestions([])
+      } finally {
+        setIsLoadingAddresses(false)
+      }
+    }
+
+    fetchAddresses()
+  }, [debouncedAddressQuery])
+
+  // Fermer les suggestions quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node) &&
+        addressInputRef.current &&
+        !addressInputRef.current.contains(event.target as Node)
+      ) {
+        setShowAddressSuggestions(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
+
+  // Sélection d'une adresse suggérée
+  const handleAddressSelect = (suggestion: AddressSuggestion) => {
+    // Construire l'adresse (numéro + rue ou label complet si pas de rue)
+    const address = suggestion.street 
+      ? `${suggestion.housenumber || ""} ${suggestion.street}`.trim()
+      : suggestion.label.split(",")[0].trim()
+    
+    // Mettre à jour l'état local en premier
+    setAddressQuery(address)
+    setShowAddressSuggestions(false)
+    setAddressSuggestions([])
+    
+    // Mettre à jour les valeurs du formulaire avec les options pour forcer le re-render
+    form.setValue("address", address, { shouldValidate: true, shouldDirty: true })
+    form.setValue("postalCode", suggestion.postcode, { shouldValidate: true, shouldDirty: true })
+    form.setValue("city", suggestion.city, { shouldValidate: true, shouldDirty: true })
+  }
+
+  // Validation d'une étape spécifique
+  const validateStep = async (stepIndex: number): Promise<boolean> => {
+    const stepId = FORM_STEPS[stepIndex].id
+    const requiredFields = STEP_REQUIRED_FIELDS[stepId]
+    
+    if (requiredFields.length === 0) {
+      return true
+    }
+
+    const result = await form.trigger(requiredFields)
+    return result
+  }
+
+  // Validation de toutes les étapes jusqu'à une étape cible
+  const validateStepsUpTo = async (targetStep: number): Promise<boolean> => {
+    for (let i = currentStep; i < targetStep; i++) {
+      const isValid = await validateStep(i)
+      if (!isValid) {
+        setCurrentStep(i) // Rester sur l'étape invalide
+        return false
+      }
+    }
+    return true
+  }
+
+  // Navigation vers une étape spécifique (depuis les indicateurs)
+  const handleStepClick = async (targetStep: number) => {
+    // Si on va vers une étape précédente, pas besoin de validation
+    if (targetStep < currentStep) {
+      setCurrentStep(targetStep)
+      return
+    }
+    
+    // Si on va vers une étape suivante, valider toutes les étapes intermédiaires
+    if (targetStep > currentStep) {
+      const isValid = await validateStepsUpTo(targetStep)
+      
+      if (!isValid) {
+        toast({
+          title: "Champs manquants",
+          description: "Veuillez remplir tous les champs obligatoires avant de continuer.",
+          variant: "destructive",
+        })
+        return
+      }
+      
+      setCurrentStep(targetStep)
+    }
+  }
+
+  const handleNextStep = async () => {
+    const isValid = await validateStep(currentStep)
+    
+    if (!isValid) {
+      toast({
+        title: "Champs manquants",
+        description: "Veuillez remplir tous les champs obligatoires avant de continuer.",
+        variant: "destructive",
+      })
+      return
+    }
+    
+    if (currentStep < FORM_STEPS.length - 1) {
+      setCurrentStep(currentStep + 1)
+    }
+  }
+
+  const handlePreviousStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1)
+    }
+  }
+
+  const isLastStep = currentStep === FORM_STEPS.length - 1
 
   // Fonction pour arrondir les honoraires à un chiffre "propre"
   const roundToNiceNumber = (value: number): number => {
@@ -426,6 +665,52 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
   }, [price, honorairesPct, honorairesType, form])
 
   async function onSubmit(data: PropertyFormData) {
+    // Vérifier si on est sur l'étape images et qu'il n'y a aucune image
+    if (currentStep === FORM_STEPS.length - 1 && existingImages.length === 0 && newImages.length === 0) {
+      const confirmed = window.confirm(
+        "Aucune image n'a été sélectionnée. Voulez-vous vraiment enregistrer l'annonce sans images ?"
+      )
+      if (!confirmed) {
+        return
+      }
+    }
+
+    // Validation des données DPE/GES : OBLIGATOIRE en mode création
+    const hasCompleteEnergyData = 
+      data.energyClass && 
+      data.energyValue && 
+      data.gesClass && 
+      data.gesValue &&
+      data.energyClass !== "VIERGE" &&
+      data.gesClass !== "VIERGE"
+
+    // En mode création, les données DPE/GES sont obligatoires
+    if (mode === "create" && !hasCompleteEnergyData) {
+      toast({
+        title: "Données énergétiques obligatoires",
+        description: "La génération du DPE et du GES est obligatoire lors de la création d'une annonce. Veuillez renseigner : Classe énergie, Consommation énergétique, Classe GES et Émissions GES (et ne pas être 'Vierge').",
+        variant: "destructive",
+      })
+      // Rediriger vers l'étape DPE
+      setCurrentStep(2)
+      return
+    }
+
+    // En mode édition, si des données sont fournies, elles doivent être complètes
+    if (mode === "edit") {
+      const hasAnyEnergyData = data.energyClass || data.energyValue || data.gesClass || data.gesValue
+      if (hasAnyEnergyData && !hasCompleteEnergyData) {
+        toast({
+          title: "Données énergétiques incomplètes",
+          description: "Pour générer les labels DPE et GES, vous devez renseigner : Classe énergie, Consommation énergétique, Classe GES et Émissions GES (et ne pas être 'Vierge').",
+          variant: "destructive",
+        })
+        // Rediriger vers l'étape DPE
+        setCurrentStep(2)
+        return
+      }
+    }
+
     setIsLoading(true)
     try {
       const apiData = formDataToApiData(data)
@@ -445,19 +730,144 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
         throw new Error(result.error || "Une erreur est survenue")
       }
 
-      // Upload des nouvelles images si présentes
+      // Génération OBLIGATOIRE des labels DPE et GES en mode création
       const targetPropertyId = mode === "edit" ? propertyId : result.id
+      const shouldGenerateLabels = 
+        data.energyClass && 
+        data.energyValue && 
+        data.gesClass && 
+        data.gesValue &&
+        data.energyClass !== "VIERGE" &&
+        data.gesClass !== "VIERGE"
+
+      if (shouldGenerateLabels && targetPropertyId) {
+        console.log("Génération automatique des labels DPE et GES...")
+        try {
+          const labelResult = await autoGenerateEnergyLabels({
+            propertyId: targetPropertyId,
+            reference: data.reference,
+            energyValue: data.energyValue!,
+            energyClass: data.energyClass!,
+            gesValue: data.gesValue!,
+            gesClass: data.gesClass!,
+          })
+
+          if (labelResult.success) {
+            console.log("Labels DPE et GES générés avec succès")
+            toast({
+              title: "Labels générés",
+              description: "Les étiquettes DPE et GES ont été générées automatiquement.",
+            })
+          } else {
+            console.warn("Échec de la génération des labels:", labelResult.error)
+            // En mode création, bloquer si la génération échoue
+            if (mode === "create") {
+              // Supprimer la propriété créée si la génération échoue
+              try {
+                const deleteResponse = await fetch(`/api/properties/${targetPropertyId}`, { method: "DELETE" })
+                if (!deleteResponse.ok) {
+                  console.error("Erreur lors de la suppression de la propriété après échec de génération")
+                }
+              } catch (deleteError) {
+                console.error("Erreur lors de la suppression de la propriété:", deleteError)
+              }
+              
+              toast({
+                title: "Erreur critique",
+                description: `Impossible de générer les labels DPE/GES: ${labelResult.error}. La création de l'annonce a été annulée. Veuillez vérifier vos données et réessayer.`,
+                variant: "destructive",
+              })
+              setIsLoading(false)
+              return
+            } else {
+              // En mode édition, juste avertir
+              toast({
+                title: "Avertissement",
+                description: `Impossible de générer les labels DPE/GES: ${labelResult.error}`,
+                variant: "destructive",
+              })
+            }
+          }
+        } catch (labelError) {
+          console.error("Erreur lors de la génération des labels:", labelError)
+          // En mode création, bloquer si la génération échoue
+          if (mode === "create") {
+            // Supprimer la propriété créée si la génération échoue
+            try {
+              const deleteResponse = await fetch(`/api/properties/${targetPropertyId}`, { method: "DELETE" })
+              if (!deleteResponse.ok) {
+                console.error("Erreur lors de la suppression de la propriété après échec de génération")
+              }
+            } catch (deleteError) {
+              console.error("Erreur lors de la suppression de la propriété:", deleteError)
+            }
+            
+            toast({
+              title: "Erreur critique",
+              description: "Les labels DPE/GES n'ont pas pu être générés. La création de l'annonce a été annulée. Veuillez vérifier vos données et réessayer.",
+              variant: "destructive",
+            })
+            setIsLoading(false)
+            return
+          } else {
+            // En mode édition, juste avertir
+            toast({
+              title: "Avertissement",
+              description: "Les labels DPE/GES n'ont pas pu être générés. Vous pourrez les générer manuellement plus tard.",
+              variant: "destructive",
+            })
+          }
+        }
+      } else if (mode === "create") {
+        // En mode création, cela ne devrait jamais arriver car on a déjà validé
+        toast({
+          title: "Erreur",
+          description: "Les données DPE/GES sont obligatoires mais manquantes.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Upload des nouvelles images si présentes
       if (newImages.length > 0 && targetPropertyId) {
         setIsUploadingImages(true)
         try {
-          await uploadImages(targetPropertyId, newImages)
+          const uploadResult = await uploadImages(targetPropertyId, newImages)
+          
+          // Si des images ont été uploadées avec succès, mettre à jour la liste
+          if (uploadResult.images && uploadResult.images.length > 0) {
+            setExistingImages((prev) => [...prev, ...uploadResult.images])
+            setNewImages([])
+          }
+
+          // Afficher un message de succès ou d'avertissement
+          if (uploadResult.warning) {
+            toast({
+              title: "Upload partiel",
+              description: uploadResult.warning,
+              variant: "destructive",
+            })
+          } else if (uploadResult.uploaded > 0) {
+            toast({
+              title: "Images uploadées",
+              description: `${uploadResult.uploaded} image(s) uploadée(s) avec succès.`,
+            })
+          }
         } catch (uploadError) {
           console.error("Error uploading images:", uploadError)
+          const errorMessage = uploadError instanceof Error 
+            ? uploadError.message 
+            : "Erreur lors de l'upload des images"
+          
           toast({
-            title: "Attention",
-            description: "L'annonce a été enregistrée mais certaines images n'ont pas pu être uploadées.",
+            title: mode === "edit" ? "Échec de l'upload" : "Échec de l'upload",
+            description: errorMessage,
             variant: "destructive",
           })
+          
+          // Ne pas rediriger si l'upload a échoué complètement
+          // L'utilisateur peut réessayer
+          return
         } finally {
           setIsUploadingImages(false)
         }
@@ -486,24 +896,84 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
     }
   }
 
-  // Fonction pour uploader les images
+  // Fonction pour uploader les images directement vers Supabase
   async function uploadImages(targetPropertyId: string, files: File[]) {
-    const formData = new FormData()
-    files.forEach((file) => {
-      formData.append("images", file)
-    })
-
-    const response = await fetch(`/api/properties/${targetPropertyId}/images`, {
-      method: "POST",
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || "Erreur lors de l'upload des images")
+    // Validation : limiter à 20 fichiers par upload (plus de limite de taille grâce à l'upload direct)
+    if (files.length > 20) {
+      throw new Error(`Trop d'images à la fois. Maximum 20 images par upload (vous tentez d'en uploader ${files.length}).`)
     }
 
-    return response.json()
+    // Récupérer la référence de la propriété pour construire le chemin d'upload
+    let propertyReference: string
+    
+    if (mode === "edit" && initialData) {
+      // En mode édition, utiliser la référence existante
+      propertyReference = initialData.reference
+    } else {
+      // En mode création, utiliser la référence du formulaire
+      propertyReference = form.getValues("reference")
+      if (!propertyReference) {
+        throw new Error("La référence de la propriété est requise pour uploader des images")
+      }
+    }
+
+    // Import dynamique du service d'upload
+    const { uploadMultipleImages } = await import("@/lib/image-upload")
+
+    // Upload direct vers Supabase avec compression automatique
+    const { uploaded, failed } = await uploadMultipleImages(
+      files,
+      propertyReference,
+      (uploadedCount, total) => {
+        console.log(`📤 Upload: ${uploadedCount}/${total} images uploadées`)
+      }
+    )
+
+    // Si toutes les images ont échoué
+    if (uploaded.length === 0 && failed.length > 0) {
+      const errorDetails = failed
+        .map((e) => `- ${e.filename}: ${e.error}`)
+        .join("\n")
+      throw new Error(`Aucune image n'a pu être uploadée.\n\nDétails:\n${errorDetails}`)
+    }
+
+    // Si certaines images ont échoué, afficher un warning
+    if (failed.length > 0) {
+      const errorDetails = failed
+        .map((e) => `- ${e.filename}: ${e.error}`)
+        .join("\n")
+      console.warn(`⚠️ ${failed.length} image(s) n'ont pas pu être uploadées:\n${errorDetails}`)
+    }
+
+    // Créer les entrées en base de données via l'API
+    const response = await fetch(`/api/properties/${targetPropertyId}/images`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        images: uploaded.map((img) => ({
+          url: img.url,
+          filename: img.filename,
+          size: img.size,
+          alt: img.filename.replace(/\.[^/.]+$/, ""),
+        })),
+      }),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.error || "Erreur lors de la création des entrées d'images")
+    }
+
+    // Si certaines images ont échoué, le signaler
+    if (failed.length > 0) {
+      result.warning = `${failed.length} image(s) n'ont pas pu être uploadées`
+      result.failed = failed.length
+    }
+
+    return result
   }
 
   // Fonction pour supprimer une image existante
@@ -634,24 +1104,34 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Tabs defaultValue="general" className="space-y-6">
-            <TabsList className="bg-secondary/95 p-1 h-auto">
-              <TabsTrigger value="general" className="data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">
-                Informations générales
-              </TabsTrigger>
-              <TabsTrigger value="details" className="data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">
-                Détails du bien
-              </TabsTrigger>
-              <TabsTrigger value="dpe" className="data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">
-                DPE & Énergie
-              </TabsTrigger>
-              <TabsTrigger value="images" className="data-[state=active]:bg-card data-[state=active]:shadow-sm px-4 py-2">
-                Images
-              </TabsTrigger>
-            </TabsList>
+          {/* Indicateur d'étapes - Style Tabs */}
+          <div className="bg-secondary/95 p-1 rounded-lg">
+            <div className="flex">
+              {FORM_STEPS.map((step, index) => (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => handleStepClick(index)}
+                  className={`
+                    flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200
+                    ${index === currentStep
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+                    }
+                  `}
+                >
+                  <span className="hidden sm:inline">{step.label}</span>
+                  <span className="sm:hidden">{step.shortLabel}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
+          {/* Contenu des étapes */}
+          <div className="space-y-6">
             {/* Informations générales */}
-            <TabsContent value="general" className="space-y-6 mt-6">
+            {currentStep === 0 && (
+              <div className="space-y-6">
               <Card className="shadow-card">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-base font-semibold">Informations de base</CardTitle>
@@ -809,7 +1289,16 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
                           <FormLabel>Prix *</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <Input type="number" placeholder="250000" {...field} className="pr-8" />
+                              <Input 
+                                type="number" 
+                                placeholder="250000" 
+                                value={field.value || ""}
+                                onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : "")}
+                                onBlur={field.onBlur}
+                                name={field.name}
+                                ref={field.ref}
+                                className="pr-8" 
+                              />
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">€</span>
                             </div>
                           </FormControl>
@@ -973,17 +1462,78 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
               <Card className="shadow-card">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-base font-semibold">Localisation</CardTitle>
+                  <CardDescription>
+                    Commencez à taper l&apos;adresse pour voir des suggestions
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5">
                   <FormField
                     control={form.control}
                     name="address"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="relative">
                         <FormLabel>Adresse *</FormLabel>
                         <FormControl>
-                          <Input placeholder="12 rue de la République" {...field} />
+                          <div className="relative">
+                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                            <Input
+                              ref={addressInputRef}
+                              placeholder="12 rue de la République"
+                              value={addressQuery}
+                              onChange={(e) => {
+                                const newValue = e.target.value
+                                setAddressQuery(newValue)
+                                field.onChange(newValue)
+                                setShowAddressSuggestions(true)
+                              }}
+                              onFocus={() => {
+                                if (addressSuggestions.length > 0) {
+                                  setShowAddressSuggestions(true)
+                                }
+                              }}
+                              className="pl-10"
+                            />
+                            {isLoadingAddresses && (
+                              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                            )}
+                          </div>
                         </FormControl>
+                        
+                        {/* Dropdown des suggestions d'adresses avec animation */}
+                        <div
+                          ref={suggestionsRef}
+                          className={`
+                            absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden
+                            transition-all duration-200 ease-out origin-top
+                            ${showAddressSuggestions && addressSuggestions.length > 0
+                              ? "opacity-100 scale-y-100 translate-y-0"
+                              : "opacity-0 scale-y-95 -translate-y-1 pointer-events-none"
+                            }
+                          `}
+                        >
+                          {addressSuggestions.map((suggestion, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => handleAddressSelect(suggestion)}
+                              className="w-full px-4 py-3 text-left hover:bg-primary/10 border-b border-border last:border-b-0 transition-colors duration-150"
+                              style={{ animationDelay: `${index * 30}ms` }}
+                            >
+                              <div className="flex items-start gap-3">
+                                <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                                <div>
+                                  <div className="font-medium text-foreground text-sm">
+                                    {suggestion.label}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-0.5">
+                                    {suggestion.context}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                        
                         <FormMessage />
                       </FormItem>
                     )}
@@ -996,8 +1546,16 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
                         <FormItem>
                           <FormLabel>Code postal *</FormLabel>
                           <FormControl>
-                            <Input placeholder="69001" maxLength={5} {...field} />
+                            <Input 
+                              placeholder="69001" 
+                              maxLength={5} 
+                              {...field} 
+                              className="bg-muted/30"
+                            />
                           </FormControl>
+                          <FormDescription className="text-xs">
+                            Rempli automatiquement
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1009,8 +1567,15 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
                         <FormItem>
                           <FormLabel>Ville *</FormLabel>
                           <FormControl>
-                            <Input placeholder="Lyon" {...field} />
+                            <Input 
+                              placeholder="Lyon" 
+                              {...field} 
+                              className="bg-muted/30"
+                            />
                           </FormControl>
+                          <FormDescription className="text-xs">
+                            Rempli automatiquement
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1035,10 +1600,12 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+              </div>
+            )}
 
             {/* Détails du bien */}
-            <TabsContent value="details" className="space-y-6 mt-6">
+            {currentStep === 1 && (
+              <div className="space-y-6">
               <Card className="shadow-card">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-base font-semibold">Caractéristiques</CardTitle>
@@ -1399,10 +1966,12 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
+              </div>
+            )}
 
             {/* DPE & Énergie */}
-            <TabsContent value="dpe" className="space-y-6 mt-6">
+            {currentStep === 2 && (
+              <div className="space-y-6">
               <Card className="shadow-card">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-base font-semibold">Diagnostic de Performance Énergétique</CardTitle>
@@ -1575,10 +2144,12 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+              </div>
+            )}
 
             {/* Images */}
-            <TabsContent value="images" className="space-y-6 mt-6">
+            {currentStep === 3 && (
+              <div className="space-y-6">
               <Card className="shadow-card">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-base font-semibold">Photos du bien</CardTitle>
@@ -1694,10 +2265,12 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
+              </div>
+            )}
+          </div>
 
-          {/* Publication options */}
+          {/* Publication options - visible uniquement sur la dernière étape */}
+          {isLastStep && (
           <Card className="shadow-card">
             <CardHeader className="pb-4">
               <CardTitle className="text-base font-semibold">Options de publication</CardTitle>
@@ -1741,31 +2314,61 @@ export function PropertyForm({ mode, initialData, propertyId }: PropertyFormProp
               />
             </CardContent>
           </Card>
+          )}
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3">
-            <Link href="/properties">
-              <Button type="button" variant="outline">
-                Annuler
-              </Button>
-            </Link>
-            <Button
-              type="submit"
-              disabled={isLoading || isUploadingImages}
-              className="shadow-sm"
-            >
-              {isLoading || isUploadingImages ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isUploadingImages ? "Upload des images..." : "Enregistrement..."}
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  {mode === "edit" ? "Enregistrer les modifications" : "Enregistrer"}
-                </>
+          {/* Actions - Navigation entre étapes */}
+          <div className="flex justify-between items-center gap-3 pt-4 border-t border-border">
+            <div className="flex gap-3">
+              <Link href="/properties">
+                <Button type="button" variant="ghost">
+                  Annuler
+                </Button>
+              </Link>
+            </div>
+            
+            <div className="flex gap-3">
+              {/* Bouton Précédent */}
+              {currentStep > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePreviousStep}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Précédent
+                </Button>
               )}
-            </Button>
+              
+              {/* Bouton Suivant ou Enregistrer */}
+              {isLastStep ? (
+                <Button
+                  type="submit"
+                  disabled={isLoading || isUploadingImages}
+                  className="shadow-sm"
+                >
+                  {isLoading || isUploadingImages ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {isUploadingImages ? "Upload des images..." : "Enregistrement..."}
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      {mode === "edit" ? "Enregistrer les modifications" : "Enregistrer"}
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="shadow-sm"
+                >
+                  Suivant
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </form>
       </Form>
