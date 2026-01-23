@@ -1,117 +1,127 @@
-"use client"
+"use client";
 
-import { forwardRef } from "react"
+import { forwardRef } from "react";
 
 export interface LabelProperty {
-  reference: string
-  title: string
-  description: string
-  propertyType: string
-  transactionType: string
-  price: number
-  city: string
-  postalCode: string
-  surface: number
-  surfaceCarrez?: number | null
-  rooms: number
-  bedrooms: number
-  bathrooms: number
-  floor?: number | null
-  totalFloors?: number | null
-  surfaceTerrain?: number | null
-  surfaceSejour?: number | null
-  surfaceBalcon?: number | null
-  surfaceCave?: number | null
-  status: string
-  energyClass?: string | null
-  energyValue?: number | null
-  gesClass?: string | null
-  gesValue?: number | null
-  hasBalcony?: boolean
-  hasTerrace?: boolean
-  hasGarden?: boolean
-  hasParking?: boolean
-  hasGarage?: boolean
-  hasCellar?: boolean
-  hasElevator?: boolean
-  hasPool?: boolean
-  honoraires?: number | null
-  honorairesType?: string | null
-  honorairesPct?: number | null
-  heatingType?: string | null
-  heatingEnergy?: string | null
-  isInCopro?: boolean
-  coprLots?: number | null
-  coprCharges?: number | null
-  neighborhood?: string | null
-  dpeImageUrl?: string | null
-  gesImageUrl?: string | null
+  reference: string;
+  title: string;
+  description: string;
+  propertyType: string;
+  transactionType: string;
+  price: number;
+  city: string;
+  postalCode: string;
+  surface: number;
+  surfaceCarrez?: number | null;
+  rooms: number;
+  bedrooms: number;
+  bathrooms: number;
+  floor?: number | null;
+  totalFloors?: number | null;
+  surfaceTerrain?: number | null;
+  surfaceSejour?: number | null;
+  surfaceBalcon?: number | null;
+  surfaceCave?: number | null;
+  status: string;
+  energyClass?: string | null;
+  energyValue?: number | null;
+  gesClass?: string | null;
+  gesValue?: number | null;
+  hasBalcony?: boolean;
+  hasTerrace?: boolean;
+  hasGarden?: boolean;
+  hasParking?: boolean;
+  hasGarage?: boolean;
+  hasCellar?: boolean;
+  hasElevator?: boolean;
+  hasPool?: boolean;
+  honoraires?: number | null;
+  honorairesType?: string | null;
+  honorairesPct?: number | null;
+  heatingType?: string | null;
+  heatingEnergy?: string | null;
+  isInCopro?: boolean;
+  coprLots?: number | null;
+  coprCharges?: number | null;
+  neighborhood?: string | null;
+  dpeImageUrl?: string | null;
+  gesImageUrl?: string | null;
+  isExclusive?: boolean;
 }
 
 interface SelectedPhoto {
-  id: string
-  url: string
-  alt?: string | null
+  id: string;
+  url: string;
+  alt?: string | null;
 }
 
 interface LabelPreviewProps {
-  property: LabelProperty
-  primaryColor?: string
-  propertyImageUrl?: string | null  // Deprecated, use selectedPhotos
-  selectedPhotos?: SelectedPhoto[]
+  property: LabelProperty;
+  primaryColor?: string;
+  propertyImageUrl?: string | null; // Deprecated, use selectedPhotos
+  selectedPhotos?: SelectedPhoto[];
 }
 
 export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
-  ({ property, primaryColor = "#2596be", propertyImageUrl, selectedPhotos = [] }, ref) => {
+  (
+    {
+      property,
+      primaryColor = "#2596be",
+      propertyImageUrl,
+      selectedPhotos = [],
+    },
+    ref,
+  ) => {
     // Use selectedPhotos if provided, fallback to single propertyImageUrl for backwards compatibility
-    const mainPhotoUrl = selectedPhotos.length > 0 ? selectedPhotos[0]?.url : propertyImageUrl
-    const smallPhotos = selectedPhotos.slice(1, 4)
+    const mainPhotoUrl =
+      selectedPhotos.length > 0 ? selectedPhotos[0]?.url : propertyImageUrl;
+    const smallPhotos = selectedPhotos.slice(1, 4);
 
     const formatPrice = (price: number) => {
-      return price.toLocaleString("fr-FR")
-    }
+      return price.toLocaleString("fr-FR");
+    };
 
     const calculatePriceExcludingFees = () => {
       if (property.honorairesType === "acquereur" && property.honorairesPct) {
-        return property.price - (property.honoraires ?? 0)
+        return property.price - (property.honoraires ?? 0);
       }
-      return null
-    }
+      return null;
+    };
 
-    const priceExcluding = calculatePriceExcludingFees()
+    const priceExcluding = calculatePriceExcludingFees();
 
     // Description container height (2/3 of available right column space)
-    const DESCRIPTION_HEIGHT = 300
-    const DESCRIPTION_WIDTH = 400 // approximate width in pixels
-    const LINE_HEIGHT = 1.5
+    const DESCRIPTION_HEIGHT = 300;
+    const DESCRIPTION_WIDTH = 400; // approximate width in pixels
+    const LINE_HEIGHT = 1.5;
 
     // Calculate description font size to fit within container
-    const DESCRIPTION_PADDING = 8 // padding-bottom for html2canvas rendering
-    
+    const DESCRIPTION_PADDING = 8; // padding-bottom for html2canvas rendering
+
     const getDescriptionFontSize = (text: string): number => {
-      const charCount = text.length
-      const availableHeight = DESCRIPTION_HEIGHT - DESCRIPTION_PADDING
-      
+      const charCount = text.length;
+      const availableHeight = DESCRIPTION_HEIGHT - DESCRIPTION_PADDING;
+
       // Estimate characters per line and lines needed for different font sizes
       // Then find the largest font size that fits
-      const fontSizes = [22, 20, 18, 16, 15, 14, 13, 12, 11, 10, 9]
-      
+      const fontSizes = [22, 20, 18, 16, 15, 14, 13, 12, 11, 10, 9];
+
       for (const fontSize of fontSizes) {
-        const charsPerLine = Math.floor(DESCRIPTION_WIDTH / (fontSize * 0.58))
-        const lineHeightPx = fontSize * LINE_HEIGHT
+        const charsPerLine = Math.floor(DESCRIPTION_WIDTH / (fontSize * 0.58));
+        const lineHeightPx = fontSize * LINE_HEIGHT;
         // Use available height minus padding, then subtract one line for safety
-        const maxLines = Math.floor(availableHeight / lineHeightPx) - 1
-        const maxChars = charsPerLine * maxLines
-        
+        const maxLines = Math.floor(availableHeight / lineHeightPx) - 1;
+        const maxChars = charsPerLine * maxLines;
+
         if (charCount <= maxChars) {
-          return fontSize
+          return fontSize;
         }
       }
-      
-      return 9 // minimum font size
-    }
 
-    const descriptionFontSize = getDescriptionFontSize(property.description)
+      return 9; // minimum font size
+    };
+
+    const descriptionFontSize = getDescriptionFontSize(property.description);
 
     // A4 Landscape proportions: 297mm x 210mm (ratio ~1.41)
     return (
@@ -155,7 +165,14 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
         {/* Main Content */}
         <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
           {/* Left Column - Photos */}
-          <div style={{ width: "50%", display: "flex", flexDirection: "column", padding: "15px" }}>
+          <div
+            style={{
+              width: "50%",
+              display: "flex",
+              flexDirection: "column",
+              padding: "15px",
+            }}
+          >
             {/* Property Title */}
             <div
               style={{
@@ -168,7 +185,7 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                 lineHeight: 1.3,
               }}
             >
-              {property.title}
+              {property.city} - {property.title}
             </div>
 
             {/* Main Photo */}
@@ -191,14 +208,16 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
               }}
             >
               {!mainPhotoUrl && (
-                <span style={{ fontSize: "32px", opacity: 0.5 }}>📷 Photo du bien</span>
+                <span style={{ fontSize: "32px", opacity: 0.5 }}>
+                  📷 Photo du bien
+                </span>
               )}
             </div>
 
             {/* Small Photos Row */}
             <div style={{ display: "flex", gap: "8px" }}>
               {[0, 1, 2].map((index) => {
-                const photo = smallPhotos[index]
+                const photo = smallPhotos[index];
                 return (
                   <div
                     key={index}
@@ -219,7 +238,7 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                   >
                     {!photo?.url && <span>📷</span>}
                   </div>
-                )
+                );
               })}
             </div>
 
@@ -232,7 +251,8 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                 lineHeight: 1.4,
               }}
             >
-              Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : www.georisques.gouv.fr
+              Les informations sur les risques auxquels ce bien est exposé sont
+              disponibles sur le site Géorisques : www.georisques.gouv.fr
             </div>
           </div>
 
@@ -271,20 +291,66 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
 
             {/* Price Section */}
             <div style={{ flexShrink: 0 }}>
-              <div style={{ fontSize: "28px", fontWeight: 700, color: primaryColor }}>
-                {formatPrice(property.price)} €
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "28px",
+                    fontWeight: 700,
+                    color: primaryColor,
+                  }}
+                >
+                  {formatPrice(property.price)} €
+                </div>
+                {property.isExclusive && (
+                  <div
+                    style={{
+                      fontSize: "24px",
+                      fontWeight: 700,
+                      color: "#dc2626",
+                      marginLeft: "20px",
+                    }}
+                  >
+                    Exclusivité !
+                  </div>
+                )}
               </div>
               {property.honorairesType === "acquereur" && priceExcluding ? (
                 <>
-                  <div style={{ fontSize: "9px", color: "#000000", marginTop: "4px" }}>
-                    soit {priceExcluding.toLocaleString("fr-FR")} € honoraires exclus
+                  <div
+                    style={{
+                      fontSize: "9px",
+                      color: "#000000",
+                      marginTop: "4px",
+                    }}
+                  >
+                    soit {priceExcluding.toLocaleString("fr-FR")} € honoraires
+                    exclus
                   </div>
-                  <div style={{ fontSize: "9px", color: "#000000", marginTop: "2px" }}>
-                    Honoraires de {property.honorairesPct}% TTC à la charge de l&apos;acquéreur
+                  <div
+                    style={{
+                      fontSize: "9px",
+                      color: "#000000",
+                      marginTop: "2px",
+                    }}
+                  >
+                    Honoraires de {property.honorairesPct}% TTC à la charge de
+                    l&apos;acquéreur
                   </div>
                 </>
               ) : (
-                <div style={{ fontSize: "9px", color: "#000000", marginTop: "4px" }}>
+                <div
+                  style={{
+                    fontSize: "9px",
+                    color: "#000000",
+                    marginTop: "4px",
+                  }}
+                >
                   Honoraires à la charge du vendeur
                 </div>
               )}
@@ -357,8 +423,8 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
           </div>
         </div>
       </div>
-    )
-  }
-)
+    );
+  },
+);
 
-LabelPreview.displayName = "LabelPreview"
+LabelPreview.displayName = "LabelPreview";

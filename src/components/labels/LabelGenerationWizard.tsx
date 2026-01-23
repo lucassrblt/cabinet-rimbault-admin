@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect } from "react";
 import {
   Loader2,
   Check,
@@ -16,8 +16,8 @@ import {
   FileText,
   X,
   GripVertical,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -25,133 +25,143 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/hooks/use-toast"
-import html2canvas from "html2canvas"
-import jsPDF from "jspdf"
-import { LabelPreview, type LabelProperty } from "@/components/labels/LabelPreview"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import {
+  LabelPreview,
+  type LabelProperty,
+} from "@/components/labels/LabelPreview";
 
 interface PropertyImage {
-  id: string
-  url: string
-  alt?: string
-  order: number
-  isMain: boolean
+  id: string;
+  url: string;
+  alt?: string;
+  order: number;
+  isMain: boolean;
 }
 
 interface PropertyDocument {
-  id: string
-  name: string
-  url: string
-  type: string
-  size?: number | null
-  mimeType?: string | null
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  size?: number | null;
+  mimeType?: string | null;
 }
 
 interface PropertyEnergy {
-  id: string
-  energyClass?: string | null
-  energyValue?: number | null
-  gesClass?: string | null
-  gesValue?: number | null
-  labelGenerated: boolean
-  labelGeneratedAt?: string | null
-  labelColor?: string | null
+  id: string;
+  energyClass?: string | null;
+  energyValue?: number | null;
+  gesClass?: string | null;
+  gesValue?: number | null;
+  labelGenerated: boolean;
+  labelGeneratedAt?: string | null;
+  labelColor?: string | null;
 }
 
 // Helper pour extraire les URLs des documents
-function getDocumentUrl(documents: PropertyDocument[] | undefined, type: string): string | null {
-  if (!documents) return null
-  const doc = documents.find(d => d.type === type)
-  return doc?.url ?? null
+function getDocumentUrl(
+  documents: PropertyDocument[] | undefined,
+  type: string,
+): string | null {
+  if (!documents) return null;
+  const doc = documents.find((d) => d.type === type);
+  return doc?.url ?? null;
 }
 
 interface PropertyFinance {
-  price: number
-  honoraires?: number | null
-  honorairesType?: string | null
-  honorairesPct?: number | null
+  price: number;
+  honoraires?: number | null;
+  honorairesType?: string | null;
+  honorairesPct?: number | null;
 }
 
 interface PropertyLocation {
-  city: string
-  postalCode: string
-  neighborhood?: string | null
+  city: string;
+  postalCode: string;
+  neighborhood?: string | null;
 }
 
 interface PropertyCharacteristics {
-  surface: number
-  surfaceCarrez?: number | null
-  rooms: number
-  bedrooms: number
-  bathrooms: number
-  floor?: number | null
-  totalFloors?: number | null
-  surfaceTerrain?: number | null
-  surfaceSejour?: number | null
-  surfaceBalcon?: number | null
-  surfaceCave?: number | null
+  surface: number;
+  surfaceCarrez?: number | null;
+  rooms: number;
+  bedrooms: number;
+  bathrooms: number;
+  floor?: number | null;
+  totalFloors?: number | null;
+  surfaceTerrain?: number | null;
+  surfaceSejour?: number | null;
+  surfaceBalcon?: number | null;
+  surfaceCave?: number | null;
 }
 
 interface PropertyAmenities {
-  hasBalcony?: boolean
-  hasTerrace?: boolean
-  hasGarden?: boolean
-  hasParking?: boolean
-  hasGarage?: boolean
-  hasCellar?: boolean
-  hasElevator?: boolean
-  hasPool?: boolean
+  hasBalcony?: boolean;
+  hasTerrace?: boolean;
+  hasGarden?: boolean;
+  hasParking?: boolean;
+  hasGarage?: boolean;
+  hasCellar?: boolean;
+  hasElevator?: boolean;
+  hasPool?: boolean;
 }
 
 interface PropertyCopro {
-  isInCopro?: boolean
-  coprLots?: number | null
-  coprCharges?: number | null
+  isInCopro?: boolean;
+  coprLots?: number | null;
+  coprCharges?: number | null;
 }
 
 interface Property {
-  id: string
-  reference: string
-  title: string
-  description: string
-  propertyType: string
-  transactionType: string
-  status: string
-  finance: PropertyFinance | null
-  location: PropertyLocation | null
-  characteristics: PropertyCharacteristics | null
-  amenities: PropertyAmenities | null
-  energy: PropertyEnergy | null
-  copro: PropertyCopro | null
-  images: PropertyImage[]
-  documents?: PropertyDocument[]
+  id: string;
+  reference: string;
+  title: string;
+  description: string;
+  propertyType: string;
+  transactionType: string;
+  status: string;
+  isExclusive?: boolean;
+  finance: PropertyFinance | null;
+  location: PropertyLocation | null;
+  characteristics: PropertyCharacteristics | null;
+  amenities: PropertyAmenities | null;
+  energy: PropertyEnergy | null;
+  copro: PropertyCopro | null;
+  images: PropertyImage[];
+  documents?: PropertyDocument[];
 }
 
 interface LabelGenerationWizardProps {
-  property: Property
-  isOpen: boolean
-  onClose: () => void
-  onComplete: () => void
-  defaultColor?: string
+  property: Property;
+  isOpen: boolean;
+  onClose: () => void;
+  onComplete: () => void;
+  defaultColor?: string;
 }
 
-const DEFAULT_COLOR = "#306fb2"
+const DEFAULT_COLOR = "#306fb2";
 
 // Helper function to transform nested property to flat LabelProperty format
-function toFlatLabelProperty(property: Property, overrides?: {
-  energyValue?: number
-  energyClass?: string
-  gesValue?: number
-  gesClass?: string
-  dpeImageUrl?: string | null
-  gesImageUrl?: string | null
-}): LabelProperty {
+function toFlatLabelProperty(
+  property: Property,
+  overrides?: {
+    energyValue?: number;
+    energyClass?: string;
+    gesValue?: number;
+    gesClass?: string;
+    dpeImageUrl?: string | null;
+    gesImageUrl?: string | null;
+  },
+): LabelProperty {
   // Get document URLs
-  const dpeImageUrlFromDocs = getDocumentUrl(property.documents, "DPE_IMAGE")
-  const gesImageUrlFromDocs = getDocumentUrl(property.documents, "GES_IMAGE")
-  
+  const dpeImageUrlFromDocs = getDocumentUrl(property.documents, "DPE_IMAGE");
+  const gesImageUrlFromDocs = getDocumentUrl(property.documents, "GES_IMAGE");
+
   return {
     reference: property.reference,
     title: property.title,
@@ -178,8 +188,14 @@ function toFlatLabelProperty(property: Property, overrides?: {
     energyValue: overrides?.energyValue || property.energy?.energyValue,
     gesClass: overrides?.gesClass || property.energy?.gesClass,
     gesValue: overrides?.gesValue || property.energy?.gesValue,
-    dpeImageUrl: overrides?.dpeImageUrl !== undefined ? overrides.dpeImageUrl : dpeImageUrlFromDocs,
-    gesImageUrl: overrides?.gesImageUrl !== undefined ? overrides.gesImageUrl : gesImageUrlFromDocs,
+    dpeImageUrl:
+      overrides?.dpeImageUrl !== undefined
+        ? overrides.dpeImageUrl
+        : dpeImageUrlFromDocs,
+    gesImageUrl:
+      overrides?.gesImageUrl !== undefined
+        ? overrides.gesImageUrl
+        : gesImageUrlFromDocs,
     hasBalcony: property.amenities?.hasBalcony,
     hasTerrace: property.amenities?.hasTerrace,
     hasGarden: property.amenities?.hasGarden,
@@ -194,16 +210,17 @@ function toFlatLabelProperty(property: Property, overrides?: {
     isInCopro: property.copro?.isInCopro,
     coprLots: property.copro?.coprLots,
     coprCharges: property.copro?.coprCharges,
-  }
+    isExclusive: property.isExclusive,
+  };
 }
 
 // Step indicator component
-function StepIndicator({ 
-  currentStep, 
-  steps 
-}: { 
-  currentStep: number
-  steps: { title: string; icon: React.ReactNode }[] 
+function StepIndicator({
+  currentStep,
+  steps,
+}: {
+  currentStep: number;
+  steps: { title: string; icon: React.ReactNode }[];
 }) {
   return (
     <div className="flex items-center justify-center gap-1 mb-6">
@@ -214,15 +231,11 @@ function StepIndicator({
               index < currentStep
                 ? "bg-green-500 text-white"
                 : index === currentStep
-                ? "bg-primary text-white ring-4 ring-primary/20"
-                : "bg-muted text-muted-foreground"
+                  ? "bg-primary text-white ring-4 ring-primary/20"
+                  : "bg-muted text-muted-foreground"
             }`}
           >
-            {index < currentStep ? (
-              <Check className="h-4 w-4" />
-            ) : (
-              step.icon
-            )}
+            {index < currentStep ? <Check className="h-4 w-4" /> : step.icon}
           </div>
           {index < steps.length - 1 && (
             <div
@@ -234,7 +247,7 @@ function StepIndicator({
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 export function LabelGenerationWizard({
@@ -244,53 +257,57 @@ export function LabelGenerationWizard({
   onComplete,
   defaultColor = DEFAULT_COLOR,
 }: LabelGenerationWizardProps) {
-  const { toast } = useToast()
-  const labelRef = useRef<HTMLDivElement>(null)
+  const { toast } = useToast();
+  const labelRef = useRef<HTMLDivElement>(null);
 
   // Wizard state
-  const [currentStep, setCurrentStep] = useState(0)
-  const [isLoading, setIsLoading] = useState(false)
-  const [loadingMessage, setLoadingMessage] = useState("")
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
 
   // Photo selection (up to 4 photos in order: main + 3 small)
-  const [selectedPhotos, setSelectedPhotos] = useState<PropertyImage[]>([])
-  
+  const [selectedPhotos, setSelectedPhotos] = useState<PropertyImage[]>([]);
+
   // Label customization
-  const [primaryColor, setPrimaryColor] = useState(property.energy?.labelColor || defaultColor)
+  const [primaryColor, setPrimaryColor] = useState(
+    property.energy?.labelColor || defaultColor,
+  );
 
   // Updated property for preview
-  const [previewProperty, setPreviewProperty] = useState<Property>(property)
-
+  const [previewProperty, setPreviewProperty] = useState<Property>(property);
 
   const steps = [
     { title: "Sélection photos", icon: <ImageIcon className="h-4 w-4" /> },
     { title: "Personnalisation", icon: <Palette className="h-4 w-4" /> },
     { title: "Génération", icon: <FileText className="h-4 w-4" /> },
-  ]
+  ];
 
   // Reset state when property changes
   useEffect(() => {
     if (isOpen) {
-      setCurrentStep(0)
+      setCurrentStep(0);
       // Pre-select main image if available, otherwise take first images
       const initialPhotos = property.images
         .slice()
-        .sort((a, b) => (b.isMain ? 1 : 0) - (a.isMain ? 1 : 0) || a.order - b.order)
-        .slice(0, 4)
-      setSelectedPhotos(initialPhotos)
-      setPrimaryColor(property.energy?.labelColor || defaultColor)
-      setPreviewProperty(property)
+        .sort(
+          (a, b) =>
+            (b.isMain ? 1 : 0) - (a.isMain ? 1 : 0) || a.order - b.order,
+        )
+        .slice(0, 4);
+      setSelectedPhotos(initialPhotos);
+      setPrimaryColor(property.energy?.labelColor || defaultColor);
+      setPreviewProperty(property);
     }
-  }, [isOpen, property, defaultColor])
+  }, [isOpen, property, defaultColor]);
 
   // Generate PDF
   const generatePDF = async () => {
-    setIsLoading(true)
-    setLoadingMessage("Préparation de l'étiquette...")
+    setIsLoading(true);
+    setLoadingMessage("Préparation de l'étiquette...");
 
     try {
       // First call the generate API to update property data
-      setLoadingMessage("Mise à jour des données...")
+      setLoadingMessage("Mise à jour des données...");
       const response = await fetch("/api/labels/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -305,134 +322,147 @@ export function LabelGenerationWizard({
           gesValue: property.energy?.gesValue,
           gesClass: property.energy?.gesClass,
         }),
-      })
+      });
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Erreur lors de la génération")
+        const error = await response.json();
+        throw new Error(error.error || "Erreur lors de la génération");
       }
 
-      const data = await response.json()
-      const updatedProperty = data.property as Property
+      const data = await response.json();
+      const updatedProperty = data.property as Property;
 
       // Update preview property with new data
-      setPreviewProperty(updatedProperty)
+      setPreviewProperty(updatedProperty);
 
       // Wait for React to render
-      setLoadingMessage("Rendu de l'étiquette...")
-      await new Promise(resolve => setTimeout(resolve, 800))
+      setLoadingMessage("Rendu de l'étiquette...");
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       // Generate PDF from canvas
       if (labelRef.current) {
-        setLoadingMessage("Génération du PDF...")
+        setLoadingMessage("Génération du PDF...");
         const canvas = await html2canvas(labelRef.current, {
           scale: 2,
           useCORS: true,
           allowTaint: true,
           backgroundColor: "#ffffff",
-        })
+        });
 
-        const imgData = canvas.toDataURL("image/png")
+        const imgData = canvas.toDataURL("image/png");
         const pdf = new jsPDF({
           orientation: "landscape",
           unit: "mm",
           format: "a4",
-        })
+        });
 
-        const pdfWidth = pdf.internal.pageSize.getWidth()
-        const pdfHeight = pdf.internal.pageSize.getHeight()
-        const imgWidth = canvas.width
-        const imgHeight = canvas.height
-        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
-        const imgX = (pdfWidth - imgWidth * ratio) / 2
-        const imgY = (pdfHeight - imgHeight * ratio) / 2
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+        const imgX = (pdfWidth - imgWidth * ratio) / 2;
+        const imgY = (pdfHeight - imgHeight * ratio) / 2;
 
-        pdf.addImage(imgData, "PNG", imgX, imgY, imgWidth * ratio, imgHeight * ratio)
+        pdf.addImage(
+          imgData,
+          "PNG",
+          imgX,
+          imgY,
+          imgWidth * ratio,
+          imgHeight * ratio,
+        );
 
         // Get PDF as blob
-        const pdfBlob = pdf.output("blob")
+        const pdfBlob = pdf.output("blob");
 
         // Upload PDF to Supabase
-        setLoadingMessage("Upload du PDF vers Supabase...")
-        const formData = new FormData()
-        formData.append("pdf", pdfBlob, `etiquette_${property.reference}.pdf`)
-        formData.append("propertyId", property.id)
+        setLoadingMessage("Upload du PDF vers Supabase...");
+        const formData = new FormData();
+        formData.append("pdf", pdfBlob, `etiquette_${property.reference}.pdf`);
+        formData.append("propertyId", property.id);
 
         const uploadResponse = await fetch("/api/labels/upload-pdf", {
           method: "POST",
           body: formData,
-        })
+        });
 
         if (!uploadResponse.ok) {
-          console.error("Failed to upload PDF to Supabase")
+          console.error("Failed to upload PDF to Supabase");
         }
 
         // Download PDF
-        pdf.save(`etiquette_${property.reference}.pdf`)
+        pdf.save(`etiquette_${property.reference}.pdf`);
 
         toast({
           title: "Étiquette générée avec succès",
           description: `Le fichier "etiquette_${property.reference}.pdf" a été téléchargé et sauvegardé dans votre espace.`,
-        })
+        });
 
-        setCurrentStep(2)
+        setCurrentStep(2);
       }
     } catch (error) {
-      console.error("Error generating PDF:", error)
+      console.error("Error generating PDF:", error);
       toast({
         title: "Échec de la génération",
-        description: error instanceof Error ? error.message : "Impossible de générer le PDF. Vérifiez que les photos sont accessibles et réessayez.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Impossible de générer le PDF. Vérifiez que les photos sont accessibles et réessayez.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
-      setLoadingMessage("")
+      setIsLoading(false);
+      setLoadingMessage("");
     }
-  }
+  };
 
   const handleClose = () => {
     if (currentStep === 2) {
-      onComplete()
+      onComplete();
     }
-    onClose()
-  }
+    onClose();
+  };
 
   const goToCustomization = () => {
     // Update preview property with current values before going to customization step
-    setPreviewProperty(property)
-    setCurrentStep(1)
-  }
+    setPreviewProperty(property);
+    setCurrentStep(1);
+  };
 
   // Toggle photo selection
   const togglePhotoSelection = (image: PropertyImage) => {
     setSelectedPhotos((prev) => {
-      const isSelected = prev.some((p) => p.id === image.id)
+      const isSelected = prev.some((p) => p.id === image.id);
       if (isSelected) {
         // Remove from selection
-        return prev.filter((p) => p.id !== image.id)
+        return prev.filter((p) => p.id !== image.id);
       } else if (prev.length < 4) {
         // Add to selection (max 4)
-        return [...prev, image]
+        return [...prev, image];
       }
-      return prev
-    })
-  }
+      return prev;
+    });
+  };
 
   // Move photo in the order
   const movePhoto = (index: number, direction: "up" | "down") => {
     setSelectedPhotos((prev) => {
-      const newArr = [...prev]
-      const targetIndex = direction === "up" ? index - 1 : index + 1
-      if (targetIndex < 0 || targetIndex >= newArr.length) return prev
-      ;[newArr[index], newArr[targetIndex]] = [newArr[targetIndex], newArr[index]]
-      return newArr
-    })
-  }
+      const newArr = [...prev];
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= newArr.length) return prev;
+      [newArr[index], newArr[targetIndex]] = [
+        newArr[targetIndex],
+        newArr[index],
+      ];
+      return newArr;
+    });
+  };
 
   // Remove photo from selection
   const removePhoto = (index: number) => {
-    setSelectedPhotos((prev) => prev.filter((_, i) => i !== index))
-  }
+    setSelectedPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -442,9 +472,7 @@ export function LabelGenerationWizard({
             <FileText className="h-5 w-5 text-primary" />
             Génération d&apos;étiquette - {property.reference}
           </DialogTitle>
-          <DialogDescription>
-            {steps[currentStep]?.title}
-          </DialogDescription>
+          <DialogDescription>{steps[currentStep]?.title}</DialogDescription>
         </DialogHeader>
 
         <StepIndicator currentStep={currentStep} steps={steps} />
@@ -456,10 +484,13 @@ export function LabelGenerationWizard({
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
                 <ImageIcon className="h-8 w-8 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">Sélection des photos</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                Sélection des photos
+              </h3>
               <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                Choisissez jusqu&apos;à 4 photos pour l&apos;étiquette. La première sera la photo principale, 
-                les 3 suivantes seront affichées en miniature.
+                Choisissez jusqu&apos;à 4 photos pour l&apos;étiquette. La
+                première sera la photo principale, les 3 suivantes seront
+                affichées en miniature.
               </p>
             </div>
 
@@ -470,8 +501,12 @@ export function LabelGenerationWizard({
                 {property.images.length > 0 ? (
                   <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto p-1">
                     {property.images.map((img) => {
-                      const isSelected = selectedPhotos.some((p) => p.id === img.id)
-                      const selectionIndex = selectedPhotos.findIndex((p) => p.id === img.id)
+                      const isSelected = selectedPhotos.some(
+                        (p) => p.id === img.id,
+                      );
+                      const selectionIndex = selectedPhotos.findIndex(
+                        (p) => p.id === img.id,
+                      );
                       return (
                         <button
                           key={img.id}
@@ -482,8 +517,8 @@ export function LabelGenerationWizard({
                             isSelected
                               ? "border-primary ring-2 ring-primary/20"
                               : selectedPhotos.length >= 4
-                              ? "border-transparent opacity-50 cursor-not-allowed"
-                              : "border-transparent hover:border-muted-foreground/30"
+                                ? "border-transparent opacity-50 cursor-not-allowed"
+                                : "border-transparent hover:border-muted-foreground/30"
                           }`}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -503,7 +538,7 @@ export function LabelGenerationWizard({
                             </div>
                           )}
                         </button>
-                      )
+                      );
                     })}
                   </div>
                 ) : (
@@ -513,7 +548,8 @@ export function LabelGenerationWizard({
                       Aucune photo disponible
                     </p>
                     <p className="text-xs text-muted-foreground/70 text-center mt-1">
-                      Ajoutez des photos à cette annonce pour les utiliser sur l&apos;étiquette
+                      Ajoutez des photos à cette annonce pour les utiliser sur
+                      l&apos;étiquette
                     </p>
                   </div>
                 )}
@@ -534,14 +570,16 @@ export function LabelGenerationWizard({
                     </Button>
                   )}
                 </h4>
-                
+
                 {selectedPhotos.length > 0 ? (
                   <div className="space-y-2">
                     {selectedPhotos.map((photo, index) => (
                       <div
                         key={photo.id}
                         className={`flex items-center gap-3 p-2 rounded-lg border ${
-                          index === 0 ? "bg-primary/5 border-primary/30" : "bg-muted/50"
+                          index === 0
+                            ? "bg-primary/5 border-primary/30"
+                            : "bg-muted/50"
                         }`}
                       >
                         <div className="flex flex-col gap-0.5">
@@ -564,7 +602,7 @@ export function LabelGenerationWizard({
                             <ChevronDown className="h-3 w-3" />
                           </Button>
                         </div>
-                        
+
                         <div className="w-16 h-16 rounded overflow-hidden flex-shrink-0">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
@@ -573,18 +611,20 @@ export function LabelGenerationWizard({
                             className="w-full h-full object-cover"
                           />
                         </div>
-                        
+
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm">
-                            {index === 0 ? "📷 Photo principale" : `Photo ${index + 1}`}
+                            {index === 0
+                              ? "📷 Photo principale"
+                              : `Photo ${index + 1}`}
                           </div>
                           <div className="text-xs text-muted-foreground truncate">
-                            {index === 0 
-                              ? "Grande image à gauche de l'étiquette" 
+                            {index === 0
+                              ? "Grande image à gauche de l'étiquette"
                               : "Miniature en bas de la colonne gauche"}
                           </div>
                         </div>
-                        
+
                         <Button
                           variant="ghost"
                           size="icon"
@@ -609,9 +649,12 @@ export function LabelGenerationWizard({
                 {selectedPhotos.length > 0 && (
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-xs text-blue-700">
-                      <strong>Disposition sur l&apos;étiquette :</strong><br />
-                      • Photo 1 : Grande image principale (gauche)<br />
-                      {selectedPhotos.length > 1 && "• Photos 2-4 : Miniatures en dessous"}
+                      <strong>Disposition sur l&apos;étiquette :</strong>
+                      <br />
+                      • Photo 1 : Grande image principale (gauche)
+                      <br />
+                      {selectedPhotos.length > 1 &&
+                        "• Photos 2-4 : Miniatures en dessous"}
                     </p>
                   </div>
                 )}
@@ -638,7 +681,9 @@ export function LabelGenerationWizard({
                         <div
                           key={photo.id}
                           className={`relative rounded-md overflow-hidden border-2 ${
-                            index === 0 ? "w-20 h-20 border-primary" : "w-12 h-12 border-muted"
+                            index === 0
+                              ? "w-20 h-20 border-primary"
+                              : "w-12 h-12 border-muted"
                           }`}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -654,7 +699,9 @@ export function LabelGenerationWizard({
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Aucune photo sélectionnée</p>
+                    <p className="text-sm text-muted-foreground">
+                      Aucune photo sélectionnée
+                    </p>
                   )}
                   <Button
                     variant="outline"
@@ -705,8 +752,14 @@ export function LabelGenerationWizard({
                 <div className="p-4 bg-muted/50 rounded-lg text-sm">
                   <p className="font-medium mb-2">Récapitulatif :</p>
                   <ul className="space-y-1 text-muted-foreground">
-                    <li>• DPE : {property.energy?.energyClass || "N/A"} ({property.energy?.energyValue || 0} kWh/m²/an)</li>
-                    <li>• GES : {property.energy?.gesClass || "N/A"} ({property.energy?.gesValue || 0} kg CO₂/m²/an)</li>
+                    <li>
+                      • DPE : {property.energy?.energyClass || "N/A"} (
+                      {property.energy?.energyValue || 0} kWh/m²/an)
+                    </li>
+                    <li>
+                      • GES : {property.energy?.gesClass || "N/A"} (
+                      {property.energy?.gesValue || 0} kg CO₂/m²/an)
+                    </li>
                     <li>
                       • Honoraires :{" "}
                       {property.finance?.honorairesType === "acquereur"
@@ -724,7 +777,10 @@ export function LabelGenerationWizard({
                   Aperçu de l&apos;étiquette
                 </label>
                 <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
-                  <div className="transform scale-[0.4] origin-top-left" style={{ width: "250%", height: "252px" }}>
+                  <div
+                    className="transform scale-[0.4] origin-top-left"
+                    style={{ width: "250%", height: "252px" }}
+                  >
                     <LabelPreview
                       property={toFlatLabelProperty(previewProperty)}
                       primaryColor={primaryColor}
@@ -748,7 +804,9 @@ export function LabelGenerationWizard({
             {isLoading && (
               <div className="flex flex-col items-center justify-center py-6 gap-3">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground animate-pulse">{loadingMessage}</p>
+                <p className="text-sm text-muted-foreground animate-pulse">
+                  {loadingMessage}
+                </p>
               </div>
             )}
           </div>
@@ -761,9 +819,12 @@ export function LabelGenerationWizard({
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-500/10 mb-4">
                 <Check className="h-10 w-10 text-green-500" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">Étiquette générée avec succès !</h3>
+              <h3 className="text-xl font-semibold mb-2">
+                Étiquette générée avec succès !
+              </h3>
               <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                L&apos;étiquette a été téléchargée et sauvegardée dans votre espace Supabase.
+                L&apos;étiquette a été téléchargée et sauvegardée dans votre
+                espace Supabase.
               </p>
             </div>
 
@@ -787,7 +848,12 @@ export function LabelGenerationWizard({
               <Button variant="outline" onClick={handleClose}>
                 Annuler
               </Button>
-              <Button onClick={goToCustomization} disabled={selectedPhotos.length === 0 && property.images.length > 0}>
+              <Button
+                onClick={goToCustomization}
+                disabled={
+                  selectedPhotos.length === 0 && property.images.length > 0
+                }
+              >
                 Continuer
                 <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
@@ -825,6 +891,5 @@ export function LabelGenerationWizard({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
-
