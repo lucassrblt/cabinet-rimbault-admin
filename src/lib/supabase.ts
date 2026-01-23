@@ -127,6 +127,120 @@ export async function deleteFromStorage(
 }
 
 /**
+ * Delete all files in a folder from Supabase storage
+ * Utilise le client admin (service role) si disponible pour bypass les RLS policies
+ * @param bucket - Le nom du bucket
+ * @param folderPath - Le chemin du dossier (ex: "REF123" pour supprimer tous les fichiers dans property-files/REF123/)
+ * @returns Le nombre de fichiers supprimés et les erreurs éventuelles
+ */
+export async function deleteFolderFromStorage(
+  bucket: string,
+  folderPath: string
+): Promise<{ success: boolean; deletedCount: number; errors: Error[] }> {
+  // Utiliser le client admin pour les suppressions (bypass RLS)
+  const client = supabaseAdmin || supabase
+
+  if (!supabaseAdmin) {
+    console.warn(
+      "⚠️ SUPABASE_SERVICE_ROLE_KEY non configurée. La suppression utilisera la clé anonyme et pourrait échouer à cause des RLS policies."
+    )
+  }
+
+  try {
+    // Normaliser le chemin du dossier (enlever le slash final s'il existe)
+    const normalizedPath = folderPath.endsWith("/") 
+      ? folderPath.slice(0, -1) 
+      : folderPath
+
+    // Lister tous les fichiers dans le dossier (récursif)
+    const { data: files, error: listError } = await client.storage
+      .from(bucket)
+      .list(normalizedPath, {
+        limit: 1000, // Limite maximale de Supabase
+        sortBy: { column: "name", order: "asc" },
+      })
+
+    if (listError) {
+      console.error("Erreur lors de la liste des fichiers:", listError)
+      return { success: false, deletedCount: 0, errors: [listError] }
+    }
+
+    if (!files || files.length === 0) {
+      // Le dossier est vide ou n'existe pas, c'est OK
+      return { success: true, deletedCount: 0, errors: [] }
+    }
+
+    // Collecter tous les chemins de fichiers (récursif pour les sous-dossiers)
+    const allFilePaths: string[] = []
+    const errors: Error[] = []
+
+    // Fonction récursive pour collecter tous les fichiers
+    const collectFiles = async (currentPath: string) => {
+      const { data: items, error } = await client.storage
+        .from(bucket)
+        .list(currentPath, {
+          limit: 1000,
+          sortBy: { column: "name", order: "asc" },
+        })
+
+      if (error) {
+        errors.push(error)
+        return
+      }
+
+      if (!items) return
+
+      for (const item of items) {
+        const itemPath = `${currentPath}/${item.name}`
+        
+        if (item.id === null) {
+          // C'est un dossier, explorer récursivement
+          await collectFiles(itemPath)
+        } else {
+          // C'est un fichier
+          allFilePaths.push(itemPath)
+        }
+      }
+    }
+
+    // Collecter tous les fichiers récursivement
+    await collectFiles(normalizedPath)
+
+    if (allFilePaths.length === 0) {
+      return { success: true, deletedCount: 0, errors }
+    }
+
+    // Supprimer tous les fichiers en une seule opération
+    const { error: deleteError } = await client.storage
+      .from(bucket)
+      .remove(allFilePaths)
+
+    if (deleteError) {
+      console.error("Erreur lors de la suppression des fichiers:", deleteError)
+      errors.push(deleteError)
+      return { 
+        success: false, 
+        deletedCount: 0, 
+        errors 
+      }
+    }
+
+    return { 
+      success: true, 
+      deletedCount: allFilePaths.length, 
+      errors 
+    }
+  } catch (error) {
+    console.error("Erreur lors de la suppression du dossier:", error)
+    return { 
+      success: false, 
+      deletedCount: 0, 
+      errors: [error as Error] 
+    }
+  }
+}
+
+/**
  * Get public URL for a file
  */
 export function getPublicUrl(bucket: string, path: string): string {

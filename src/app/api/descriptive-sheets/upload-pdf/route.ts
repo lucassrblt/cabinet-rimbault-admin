@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { uploadToStorage, BUCKETS } from "@/lib/supabase"
 import { requireAuth } from "@/lib/api-auth"
+import { upsertPropertyDocument } from "@/lib/documents"
 
 // Configuration App Router pour cette route
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // 60 secondes max pour l'upload
 
+/**
+ * POST /api/descriptive-sheets/upload-pdf
+ * Upload a generated descriptive sheet PDF to storage
+ * Stores the document in PropertyDocument table with type DESCRIPTIVE_SHEET_PDF
+ */
 export async function POST(request: NextRequest) {
   // Check authentication
   const authResult = await requireAuth()
@@ -58,15 +64,15 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer)
 
     // Upload PDF to Supabase Storage
-    const fileName = `${propertyId}/${Date.now()}_fiche_descriptive.pdf`
+    // Chemin: property-files/[reference]/descriptive-sheet/fiche_descriptive.pdf
+    const fileName = `${property.reference}/descriptive-sheet/${Date.now()}_fiche_descriptive.pdf`
     
-    // Essayer d'abord le bucket descriptive_sheets, sinon fallback sur labels
     let pdfUrl: string | null = null
     let uploadError: Error | null = null
 
-    // Tentative sur le bucket descriptive_sheets
+    // Upload sur le bucket property-files
     const result = await uploadToStorage(
-      BUCKETS.DESCRIPTIVE_SHEETS,
+      BUCKETS.PROPERTY_FILES,
       fileName,
       buffer,
       "application/pdf"
@@ -74,45 +80,40 @@ export async function POST(request: NextRequest) {
 
     if (result.url) {
       pdfUrl = result.url
-      console.log(`[Upload PDF] Success on descriptive_sheets bucket: ${pdfUrl}`)
+      console.log(`[Upload PDF] Success on property-files bucket: ${pdfUrl}`)
     } else {
-      console.warn(`[Upload PDF] Failed on descriptive_sheets bucket:`, result.error)
-      
-      // Fallback sur le bucket labels
-      const fallbackResult = await uploadToStorage(
-        BUCKETS.LABELS,
-        `descriptive-sheets/${fileName}`,
-        buffer,
-        "application/pdf"
-      )
-
-      if (fallbackResult.url) {
-        pdfUrl = fallbackResult.url
-        console.log(`[Upload PDF] Success on labels bucket (fallback): ${pdfUrl}`)
-      } else {
-        uploadError = fallbackResult.error
-        console.error(`[Upload PDF] Failed on both buckets:`, uploadError)
-      }
+      uploadError = result.error
+      console.error(`[Upload PDF] Failed on property-files bucket:`, uploadError)
     }
 
     if (!pdfUrl) {
       return NextResponse.json(
         { 
-          error: "Erreur lors de l'upload du PDF. Vérifiez que le bucket 'descriptive_sheets' existe dans Supabase.",
+          error: "Erreur lors de l'upload du PDF. Vérifiez que le bucket 'property-files' existe dans Supabase.",
           details: uploadError?.message 
         },
         { status: 500 }
       )
     }
 
-    // Update property energy record with descriptive sheet info
+    // Store document in PropertyDocument table
+    await upsertPropertyDocument({
+      propertyId,
+      type: "DESCRIPTIVE_SHEET_PDF",
+      url: pdfUrl,
+      name: `${property.reference}_fiche_descriptive.pdf`,
+      size: pdfFile.size,
+      mimeType: "application/pdf",
+      description: "Fiche descriptive du bien",
+    })
+
+    // Update property energy record with generation metadata
     if (property.energy) {
       await prisma.propertyEnergy.update({
         where: { id: property.energy.id },
         data: {
           descriptiveSheetGenerated: true,
           descriptiveSheetGeneratedAt: new Date(),
-          descriptiveSheetPdfUrl: pdfUrl,
         },
       })
     } else {
@@ -122,7 +123,6 @@ export async function POST(request: NextRequest) {
           propertyId: property.id,
           descriptiveSheetGenerated: true,
           descriptiveSheetGeneratedAt: new Date(),
-          descriptiveSheetPdfUrl: pdfUrl,
         },
       })
     }

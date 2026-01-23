@@ -1,13 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 
 // Import mocks
 import { mockPrismaClient, resetPrismaMocks } from '../mocks/prisma'
 import { setAuthenticated, resetAuthMocks } from '../mocks/auth'
-import {
-  setUploadSuccess,
-  setUploadFailure,
-  resetSupabaseMocks,
-} from '../mocks/supabase'
+import { resetSupabaseMocks } from '../mocks/supabase'
 import {
   mockPropertyBase,
   mockPropertyEnergy,
@@ -16,16 +12,11 @@ import {
 // Import the route handler
 import { POST } from '@/app/api/labels/preview-energy/route'
 
-// Mock global fetch for external API calls
-const mockFetch = vi.fn()
-global.fetch = mockFetch
-
 describe('/api/labels/preview-energy', () => {
   beforeEach(() => {
     resetPrismaMocks()
     resetAuthMocks()
     resetSupabaseMocks()
-    mockFetch.mockReset()
   })
 
   describe('POST /api/labels/preview-energy', () => {
@@ -113,7 +104,7 @@ describe('/api/labels/preview-energy', () => {
       expect(data.error).toBe('Les données GES (classe et valeur) sont requises')
     })
 
-    it('devrait générer les previews DPE/GES avec succès', async () => {
+    it('devrait générer les previews DPE/GES avec succès (data URLs, pas d\'upload)', async () => {
       setAuthenticated(true)
 
       mockPrismaClient.property.findUnique.mockResolvedValue({
@@ -121,15 +112,6 @@ describe('/api/labels/preview-energy', () => {
         reference: 'REF-001',
         energy: mockPropertyEnergy,
       })
-
-      // Mock successful external API calls
-      mockFetch.mockResolvedValue({
-        ok: true,
-        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
-        headers: new Map([['content-type', 'image/png']]),
-      })
-
-      setUploadSuccess('https://storage.example.com/uploaded.png')
 
       const request = new Request('http://localhost:3000/api/labels/preview-energy', {
         method: 'POST',
@@ -145,6 +127,8 @@ describe('/api/labels/preview-energy', () => {
       expect(data.success).toBe(true)
       expect(data.preview.dpeImageUrl).toBeDefined()
       expect(data.preview.gesImageUrl).toBeDefined()
+      expect(data.preview.dpeImageUrl).toMatch(/^data:image\/svg\+xml;base64,/)
+      expect(data.preview.gesImageUrl).toMatch(/^data:image\/svg\+xml;base64,/)
       expect(data.preview.energyValue).toBe(180)
       expect(data.preview.energyClass).toBe('D')
     })
@@ -157,14 +141,6 @@ describe('/api/labels/preview-energy', () => {
         reference: 'REF-001',
         energy: mockPropertyEnergy,
       })
-
-      mockFetch.mockResolvedValue({
-        ok: true,
-        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
-        headers: new Map([['content-type', 'image/png']]),
-      })
-
-      setUploadSuccess('https://storage.example.com/uploaded.png')
 
       const request = new Request('http://localhost:3000/api/labels/preview-energy', {
         method: 'POST',
@@ -187,102 +163,6 @@ describe('/api/labels/preview-energy', () => {
       expect(data.preview.gesClass).toBe('C')
     })
 
-    it('devrait retourner 500 si fetch DPE échoue', async () => {
-      setAuthenticated(true)
-
-      mockPrismaClient.property.findUnique.mockResolvedValue({
-        ...mockPropertyBase,
-        reference: 'REF-001',
-        energy: mockPropertyEnergy,
-      })
-
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-      })
-
-      const request = new Request('http://localhost:3000/api/labels/preview-energy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          propertyId: 'prop-123',
-        }),
-      })
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(500)
-      expect(data.error).toContain('Impossible de récupérer l\'image DPE')
-    })
-
-    it('devrait retourner 500 si fetch GES échoue', async () => {
-      setAuthenticated(true)
-
-      mockPrismaClient.property.findUnique.mockResolvedValue({
-        ...mockPropertyBase,
-        reference: 'REF-001',
-        energy: mockPropertyEnergy,
-      })
-
-      // DPE succeeds, GES fails
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
-          headers: new Map([['content-type', 'image/png']]),
-        })
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 404,
-          statusText: 'Not Found',
-        })
-
-      const request = new Request('http://localhost:3000/api/labels/preview-energy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          propertyId: 'prop-123',
-        }),
-      })
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(500)
-      expect(data.error).toContain('Impossible de récupérer l\'image GES')
-    })
-
-    it('devrait retourner 500 si upload DPE échoue', async () => {
-      setAuthenticated(true)
-
-      mockPrismaClient.property.findUnique.mockResolvedValue({
-        ...mockPropertyBase,
-        reference: 'REF-001',
-        energy: mockPropertyEnergy,
-      })
-
-      mockFetch.mockResolvedValue({
-        ok: true,
-        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
-        headers: new Map([['content-type', 'image/png']]),
-      })
-
-      setUploadFailure(new Error('Storage error'))
-
-      const request = new Request('http://localhost:3000/api/labels/preview-energy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          propertyId: 'prop-123',
-        }),
-      })
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(500)
-      expect(data.error).toBe('Erreur lors de l\'upload de l\'image DPE dans Supabase Storage')
-    })
-
     it('devrait retourner les informations de la propriété', async () => {
       setAuthenticated(true)
 
@@ -293,14 +173,6 @@ describe('/api/labels/preview-energy', () => {
         title: 'Test Property',
         energy: mockPropertyEnergy,
       })
-
-      mockFetch.mockResolvedValue({
-        ok: true,
-        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
-        headers: new Map([['content-type', 'image/png']]),
-      })
-
-      setUploadSuccess('https://storage.example.com/uploaded.png')
 
       const request = new Request('http://localhost:3000/api/labels/preview-energy', {
         method: 'POST',
@@ -316,59 +188,6 @@ describe('/api/labels/preview-energy', () => {
       expect(data.property.id).toBe('prop-123')
       expect(data.property.reference).toBe('REF-001')
       expect(data.property.title).toBe('Test Property')
-    })
-
-    it('devrait appeler l\'API externe avec les bons paramètres', async () => {
-      setAuthenticated(true)
-
-      mockPrismaClient.property.findUnique.mockResolvedValue({
-        ...mockPropertyBase,
-        reference: 'REF-001',
-        energy: {
-          ...mockPropertyEnergy,
-          energyValue: 200,
-          energyClass: 'E',
-          gesValue: 40,
-          gesClass: 'F',
-        },
-      })
-
-      mockFetch.mockResolvedValue({
-        ok: true,
-        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
-        headers: new Map([['content-type', 'image/png']]),
-      })
-
-      setUploadSuccess('https://storage.example.com/uploaded.png')
-
-      const request = new Request('http://localhost:3000/api/labels/preview-energy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          propertyId: 'prop-123',
-        }),
-      })
-      await POST(request)
-
-      // Verify DPE API was called with correct params
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('type=dpe'),
-        expect.any(Object)
-      )
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('valeur=200'),
-        expect.any(Object)
-      )
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('lettre=e'),
-        expect.any(Object)
-      )
-
-      // Verify GES API was called with correct params
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('type=ges'),
-        expect.any(Object)
-      )
     })
 
     it('devrait retourner 500 en cas d\'erreur générale', async () => {

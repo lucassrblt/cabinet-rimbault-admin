@@ -40,18 +40,31 @@ interface PropertyImage {
   isMain: boolean
 }
 
+interface PropertyDocument {
+  id: string
+  name: string
+  url: string
+  type: string
+  size?: number | null
+  mimeType?: string | null
+}
+
 interface PropertyEnergy {
   id: string
   energyClass?: string | null
   energyValue?: number | null
   gesClass?: string | null
   gesValue?: number | null
-  dpeImageUrl?: string | null
-  gesImageUrl?: string | null
   labelGenerated: boolean
   labelGeneratedAt?: string | null
-  labelPdfUrl?: string | null
   labelColor?: string | null
+}
+
+// Helper pour extraire les URLs des documents
+function getDocumentUrl(documents: PropertyDocument[] | undefined, type: string): string | null {
+  if (!documents) return null
+  const doc = documents.find(d => d.type === type)
+  return doc?.url ?? null
 }
 
 interface PropertyFinance {
@@ -113,6 +126,7 @@ interface Property {
   energy: PropertyEnergy | null
   copro: PropertyCopro | null
   images: PropertyImage[]
+  documents?: PropertyDocument[]
 }
 
 interface LabelGenerationWizardProps {
@@ -134,6 +148,10 @@ function toFlatLabelProperty(property: Property, overrides?: {
   dpeImageUrl?: string | null
   gesImageUrl?: string | null
 }): LabelProperty {
+  // Get document URLs
+  const dpeImageUrlFromDocs = getDocumentUrl(property.documents, "DPE_IMAGE")
+  const gesImageUrlFromDocs = getDocumentUrl(property.documents, "GES_IMAGE")
+  
   return {
     reference: property.reference,
     title: property.title,
@@ -160,8 +178,8 @@ function toFlatLabelProperty(property: Property, overrides?: {
     energyValue: overrides?.energyValue || property.energy?.energyValue,
     gesClass: overrides?.gesClass || property.energy?.gesClass,
     gesValue: overrides?.gesValue || property.energy?.gesValue,
-    dpeImageUrl: overrides?.dpeImageUrl !== undefined ? overrides.dpeImageUrl : property.energy?.dpeImageUrl,
-    gesImageUrl: overrides?.gesImageUrl !== undefined ? overrides.gesImageUrl : property.energy?.gesImageUrl,
+    dpeImageUrl: overrides?.dpeImageUrl !== undefined ? overrides.dpeImageUrl : dpeImageUrlFromDocs,
+    gesImageUrl: overrides?.gesImageUrl !== undefined ? overrides.gesImageUrl : gesImageUrlFromDocs,
     hasBalcony: property.amenities?.hasBalcony,
     hasTerrace: property.amenities?.hasTerrace,
     hasGarden: property.amenities?.hasGarden,
@@ -280,8 +298,8 @@ export function LabelGenerationWizard({
           propertyId: property.id,
           selectedPhotoIds: selectedPhotos.map((p) => p.id),
           primaryColor,
-          previewDpeUrl: property.energy?.dpeImageUrl,
-          previewGesUrl: property.energy?.gesImageUrl,
+          previewDpeUrl: getDocumentUrl(property.documents, "DPE_IMAGE"),
+          previewGesUrl: getDocumentUrl(property.documents, "GES_IMAGE"),
           energyValue: property.energy?.energyValue,
           energyClass: property.energy?.energyClass,
           gesValue: property.energy?.gesValue,

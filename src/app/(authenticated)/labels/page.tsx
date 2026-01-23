@@ -41,18 +41,31 @@ interface PropertyImage {
   isMain: boolean
 }
 
+interface PropertyDocument {
+  id: string
+  name: string
+  url: string
+  type: string
+  size?: number | null
+  mimeType?: string | null
+}
+
 interface PropertyEnergy {
   id: string
   energyClass?: string | null
   energyValue?: number | null
   gesClass?: string | null
   gesValue?: number | null
-  dpeImageUrl?: string | null
-  gesImageUrl?: string | null
   labelGenerated: boolean
   labelGeneratedAt?: string | null
-  labelPdfUrl?: string | null
   labelColor?: string | null
+}
+
+// Helper pour extraire les URLs des documents
+function getDocumentUrl(documents: PropertyDocument[] | undefined, type: string): string | null {
+  if (!documents) return null
+  const doc = documents.find(d => d.type === type)
+  return doc?.url ?? null
 }
 
 interface PropertyFinance {
@@ -114,6 +127,7 @@ interface Property {
   energy: PropertyEnergy | null
   copro: PropertyCopro | null
   images: PropertyImage[]
+  documents?: PropertyDocument[]
 }
 
 const DEFAULT_COLOR = "#780000"
@@ -203,9 +217,10 @@ export default function LabelsPage() {
   }
 
   const handleDownloadExisting = (property: Property) => {
-    if (property.energy?.labelPdfUrl) {
+    const labelPdfUrl = getDocumentUrl(property.documents, "LABEL_PDF")
+    if (labelPdfUrl) {
       // Open the PDF in a new tab
-      window.open(property.energy.labelPdfUrl, "_blank")
+      window.open(labelPdfUrl, "_blank")
       toast({
         title: "PDF ouvert",
         description: `L'étiquette "${property.reference}" s'ouvre dans un nouvel onglet.`,
@@ -357,7 +372,7 @@ export default function LabelsPage() {
 
                       {property.energy?.labelGenerated ? (
                         <>
-                          {property.energy?.labelPdfUrl && (
+                          {getDocumentUrl(property.documents, "LABEL_PDF") && (
                           <Button
                             variant="outline"
                             size="sm"

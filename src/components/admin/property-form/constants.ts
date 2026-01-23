@@ -1,4 +1,4 @@
-import type { FormStep, StepId, PropertyFormData } from "./types"
+import type { FormStep, StepId, PropertyFormData } from "./types";
 
 // Définition des étapes du formulaire
 export const FORM_STEPS: readonly FormStep[] = [
@@ -6,15 +6,27 @@ export const FORM_STEPS: readonly FormStep[] = [
   { id: "details", label: "Détails du bien", shortLabel: "Détails" },
   { id: "dpe", label: "DPE & Énergie", shortLabel: "DPE" },
   { id: "images", label: "Images", shortLabel: "Images" },
-] as const
+] as const;
 
 // Champs requis par étape pour la validation
-export const STEP_REQUIRED_FIELDS: Record<StepId, (keyof PropertyFormData)[]> = {
-  general: ["reference", "title", "description", "propertyType", "transactionType", "status", "price", "address", "postalCode", "city"],
-  details: ["surface", "rooms"],
-  dpe: ["energyClass", "energyValue", "gesClass", "gesValue"],
-  images: [],
-}
+export const STEP_REQUIRED_FIELDS: Record<StepId, (keyof PropertyFormData)[]> =
+  {
+    general: [
+      "reference",
+      "title",
+      "description",
+      "propertyType",
+      "transactionType",
+      "status",
+      "price",
+      "address",
+      "postalCode",
+      "city",
+    ],
+    details: ["surface", "rooms"],
+    dpe: ["energyClass", "energyValue", "gesClass", "gesValue"],
+    images: [],
+  };
 
 // Valeurs par défaut du formulaire
 export const DEFAULT_FORM_VALUES: Partial<PropertyFormData> = {
@@ -24,6 +36,8 @@ export const DEFAULT_FORM_VALUES: Partial<PropertyFormData> = {
   rooms: 1,
   bedrooms: 0,
   bathrooms: 1,
+  showerRooms: 0,
+  toilets: 0,
   hasBalcony: false,
   hasTerrace: false,
   hasGarden: false,
@@ -36,8 +50,9 @@ export const DEFAULT_FORM_VALUES: Partial<PropertyFormData> = {
   coprProcedure: false,
   isPublished: false,
   isFeatured: false,
+  isExclusive: false,
   chargesIncluses: false,
-}
+};
 
 // Options pour les selects
 export const PROPERTY_TYPE_OPTIONS = [
@@ -53,14 +68,14 @@ export const PROPERTY_TYPE_OPTIONS = [
   { value: "LOFT", label: "Loft" },
   { value: "ATELIER", label: "Atelier" },
   { value: "AUTRE", label: "Autre" },
-]
+];
 
 export const TRANSACTION_TYPE_OPTIONS = [
   { value: "VENTE", label: "Vente" },
   { value: "LOCATION", label: "Location" },
   { value: "VIAGER", label: "Viager" },
   { value: "LOCATION_SAISONNIERE", label: "Location saisonnière" },
-]
+];
 
 export const STATUS_OPTIONS = [
   { value: "DISPONIBLE", label: "Disponible" },
@@ -70,15 +85,15 @@ export const STATUS_OPTIONS = [
   { value: "LOUE", label: "Loué" },
   { value: "ARCHIVE", label: "Archivé" },
   { value: "BROUILLON", label: "Brouillon" },
-]
+];
 
-export const ENERGY_CLASSES = ["A", "B", "C", "D", "E", "F", "G"] as const
+export const ENERGY_CLASSES = ["A", "B", "C", "D", "E", "F", "G"] as const;
 
 export const HEATING_TYPE_OPTIONS = [
   { value: "INDIVIDUEL", label: "Individuel" },
   { value: "COLLECTIF", label: "Collectif" },
   { value: "MIXTE", label: "Mixte" },
-]
+];
 
 export const HEATING_ENERGY_OPTIONS = [
   { value: "GAZ", label: "Gaz" },
@@ -90,5 +105,4 @@ export const HEATING_ENERGY_OPTIONS = [
   { value: "SOLAIRE", label: "Solaire" },
   { value: "CHAUFFAGE_URBAIN", label: "Chauffage urbain" },
   { value: "MIXTE", label: "Mixte" },
-]
-
+];

@@ -24,6 +24,8 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react"
+import { useAddressAutocomplete } from "@/components/admin/property-form/hooks/useAddressAutocomplete"
+import type { AddressSuggestion } from "@/components/admin/property-form/types"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -55,23 +57,35 @@ interface PropertyImage {
   isMain: boolean
 }
 
+interface PropertyDocument {
+  id: string
+  name: string
+  url: string
+  type: string
+  size?: number | null
+  mimeType?: string | null
+}
+
 interface PropertyEnergy {
   id: string
   energyClass?: string | null
   energyValue?: number | null
   gesClass?: string | null
   gesValue?: number | null
-  dpeImageUrl?: string | null
-  gesImageUrl?: string | null
   labelGenerated: boolean
   labelGeneratedAt?: string | null
-  labelPdfUrl?: string | null
   labelColor?: string | null
   descriptiveSheetGenerated: boolean
   descriptiveSheetGeneratedAt?: string | null
-  descriptiveSheetPdfUrl?: string | null
   heatingType?: string | null
   heatingEnergy?: string | null
+}
+
+// Helper pour extraire les URLs des documents
+function getDocumentUrl(documents: PropertyDocument[] | undefined, type: string): string | null {
+  if (!documents) return null
+  const doc = documents.find(d => d.type === type)
+  return doc?.url ?? null
 }
 
 interface PropertyFinance {
@@ -141,6 +155,7 @@ interface Property {
   energy: PropertyEnergy | null
   copro: PropertyCopro | null
   images: PropertyImage[]
+  documents?: PropertyDocument[]
 }
 
 interface AgencyContacts {
@@ -238,6 +253,42 @@ export function DescriptiveSheetWizard({
     email: "",
   })
 
+  // Autocomplete pour l'adresse de l'agence
+  const handleAgencyAddressSelected = (suggestion: AddressSuggestion) => {
+    const address = suggestion.street 
+      ? `${suggestion.housenumber || ""} ${suggestion.street}`.trim()
+      : suggestion.label.split(",")[0].trim()
+    
+    setAgencyContacts(prev => ({
+      ...prev,
+      address,
+      postalCode: suggestion.postcode,
+      city: suggestion.city,
+    }))
+  }
+
+  const {
+    addressQuery: agencyAddressQuery,
+    setAddressQuery: setAgencyAddressQuery,
+    addressSuggestions: agencyAddressSuggestions,
+    isLoadingAddresses: isLoadingAgencyAddresses,
+    showAddressSuggestions: showAgencyAddressSuggestions,
+    setShowAddressSuggestions: setShowAgencyAddressSuggestions,
+    addressInputRef: agencyAddressInputRef,
+    suggestionsRef: agencyAddressSuggestionsRef,
+    handleAddressSelect: handleAgencyAddressSelect,
+  } = useAddressAutocomplete({
+    initialAddress: agencyContacts.address,
+    onAddressSelect: handleAgencyAddressSelected,
+  })
+
+  // Synchroniser agencyAddressQuery avec agencyContacts.address
+  useEffect(() => {
+    if (agencyContacts.address && agencyContacts.address !== agencyAddressQuery) {
+      setAgencyAddressQuery(agencyContacts.address)
+    }
+  }, [agencyContacts.address, agencyAddressQuery, setAgencyAddressQuery])
+
   // Step 3: Description
   const [description, setDescription] = useState(property.description || "")
 
@@ -248,7 +299,7 @@ export function DescriptiveSheetWizard({
   const [gesClass, setGesClass] = useState(property.energy?.gesClass || "D")
   const [energyPreview, setEnergyPreview] = useState<EnergyPreview | null>(null)
   const [useExistingDpe, setUseExistingDpe] = useState(
-    !!(property.energy?.dpeImageUrl && property.energy?.gesImageUrl)
+    !!(getDocumentUrl(property.documents, "DPE_IMAGE") && getDocumentUrl(property.documents, "GES_IMAGE"))
   )
 
   const steps = [
@@ -275,7 +326,7 @@ export function DescriptiveSheetWizard({
       setGesValue(property.energy?.gesValue || 0)
       setGesClass(property.energy?.gesClass || "D")
       setEnergyPreview(null)
-      setUseExistingDpe(!!(property.energy?.dpeImageUrl && property.energy?.gesImageUrl))
+      setUseExistingDpe(!!(getDocumentUrl(property.documents, "DPE_IMAGE") && getDocumentUrl(property.documents, "GES_IMAGE")))
       
       // Fetch agency settings
       fetchAgencySettings()
@@ -507,10 +558,13 @@ export function DescriptiveSheetWizard({
 
   // Get effective DPE URLs
   const getEffectiveDpeUrls = () => {
-    if (useExistingDpe && property.energy?.dpeImageUrl) {
+    const dpeFromDocs = getDocumentUrl(property.documents, "DPE_IMAGE")
+    const gesFromDocs = getDocumentUrl(property.documents, "GES_IMAGE")
+    
+    if (useExistingDpe && dpeFromDocs) {
       return {
-        dpeImageUrl: property.energy.dpeImageUrl,
-        gesImageUrl: property.energy.gesImageUrl || null,
+        dpeImageUrl: dpeFromDocs,
+        gesImageUrl: gesFromDocs,
       }
     }
     return {
@@ -739,16 +793,69 @@ export function DescriptiveSheetWizard({
                 />
               </div>
 
-              <div className="col-span-2">
+              <div className="col-span-2 relative">
                 <label className="text-sm font-medium flex items-center gap-2 mb-2">
                   <MapPin className="h-4 w-4" />
                   Adresse
                 </label>
-                <Input
-                  value={agencyContacts.address}
-                  onChange={(e) => setAgencyContacts(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="123 rue de l'Immobilier"
-                />
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                  <Input
+                    ref={agencyAddressInputRef}
+                    value={agencyAddressQuery}
+                    onChange={(e) => {
+                      const newValue = e.target.value
+                      setAgencyAddressQuery(newValue)
+                      setAgencyContacts(prev => ({ ...prev, address: newValue }))
+                      setShowAgencyAddressSuggestions(true)
+                    }}
+                    onFocus={() => {
+                      if (agencyAddressSuggestions.length > 0) {
+                        setShowAgencyAddressSuggestions(true)
+                      }
+                    }}
+                    placeholder="123 rue de l'Immobilier"
+                    className="pl-10"
+                  />
+                  {isLoadingAgencyAddresses && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                
+                {/* Dropdown des suggestions d'adresses avec animation */}
+                <div
+                  ref={agencyAddressSuggestionsRef}
+                  className={`
+                    absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden
+                    transition-all duration-200 ease-out origin-top
+                    ${showAgencyAddressSuggestions && agencyAddressSuggestions.length > 0
+                      ? "opacity-100 scale-y-100 translate-y-0"
+                      : "opacity-0 scale-y-95 -translate-y-1 pointer-events-none"
+                    }
+                  `}
+                >
+                  {agencyAddressSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => handleAgencyAddressSelect(suggestion)}
+                      className="w-full px-4 py-3 text-left hover:bg-primary/10 border-b border-border last:border-b-0 transition-colors duration-150"
+                      style={{ animationDelay: `${index * 30}ms` }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                        <div>
+                          <div className="font-medium text-foreground text-sm">
+                            {suggestion.label}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {suggestion.context}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
@@ -757,6 +864,7 @@ export function DescriptiveSheetWizard({
                   value={agencyContacts.city}
                   onChange={(e) => setAgencyContacts(prev => ({ ...prev, city: e.target.value }))}
                   placeholder="Paris"
+                  className="bg-muted/30"
                 />
               </div>
 
@@ -766,6 +874,7 @@ export function DescriptiveSheetWizard({
                   value={agencyContacts.postalCode}
                   onChange={(e) => setAgencyContacts(prev => ({ ...prev, postalCode: e.target.value }))}
                   placeholder="75001"
+                  className="bg-muted/30"
                 />
               </div>
 
@@ -855,7 +964,7 @@ export function DescriptiveSheetWizard({
               </div>
               <h3 className="text-lg font-semibold mb-2">Diagnostic énergétique</h3>
               <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                {property.energy?.dpeImageUrl 
+                {getDocumentUrl(property.documents, "DPE_IMAGE")
                   ? "Vous pouvez réutiliser le DPE existant ou en générer un nouveau."
                   : "Générez les étiquettes DPE et GES pour la fiche descriptive."
                 }
@@ -863,7 +972,7 @@ export function DescriptiveSheetWizard({
             </div>
 
             {/* Option to use existing DPE */}
-            {property.energy?.dpeImageUrl && property.energy?.gesImageUrl && (
+            {getDocumentUrl(property.documents, "DPE_IMAGE") && getDocumentUrl(property.documents, "GES_IMAGE") && (
               <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <input
                   type="checkbox"
@@ -875,21 +984,21 @@ export function DescriptiveSheetWizard({
                 <label htmlFor="useExisting" className="flex-1">
                   <span className="font-medium text-blue-800">Utiliser le DPE existant</span>
                   <p className="text-sm text-blue-600">
-                    DPE déjà généré pour l&apos;étiquette vitrine (Classe {property.energy.energyClass})
+                    DPE déjà généré pour l&apos;étiquette vitrine (Classe {property.energy?.energyClass})
                   </p>
                 </label>
                 {useExistingDpe && (
                   <div className="flex gap-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
-                      src={property.energy.dpeImageUrl} 
+                      src={getDocumentUrl(property.documents, "DPE_IMAGE") || ""} 
                       alt="DPE" 
                       className="h-16 w-auto rounded"
                     />
-                    {property.energy.gesImageUrl && (
+                    {getDocumentUrl(property.documents, "GES_IMAGE") && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img 
-                        src={property.energy.gesImageUrl} 
+                        src={getDocumentUrl(property.documents, "GES_IMAGE") || ""} 
                         alt="GES" 
                         className="h-16 w-auto rounded"
                       />

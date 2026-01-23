@@ -41,23 +41,35 @@ interface PropertyImage {
   isMain: boolean
 }
 
+interface PropertyDocument {
+  id: string
+  name: string
+  url: string
+  type: string
+  size?: number | null
+  mimeType?: string | null
+}
+
 interface PropertyEnergy {
   id: string
   energyClass?: string | null
   energyValue?: number | null
   gesClass?: string | null
   gesValue?: number | null
-  dpeImageUrl?: string | null
-  gesImageUrl?: string | null
   labelGenerated: boolean
   labelGeneratedAt?: string | null
-  labelPdfUrl?: string | null
   labelColor?: string | null
   descriptiveSheetGenerated: boolean
   descriptiveSheetGeneratedAt?: string | null
-  descriptiveSheetPdfUrl?: string | null
   heatingType?: string | null
   heatingEnergy?: string | null
+}
+
+// Helper pour extraire les URLs des documents
+function getDocumentUrl(documents: PropertyDocument[] | undefined, type: string): string | null {
+  if (!documents) return null
+  const doc = documents.find(d => d.type === type)
+  return doc?.url ?? null
 }
 
 interface PropertyFinance {
@@ -126,6 +138,7 @@ interface Property {
   energy: PropertyEnergy | null
   copro: PropertyCopro | null
   images: PropertyImage[]
+  documents?: PropertyDocument[]
 }
 
 export default function DescriptiveSheetsPage() {
@@ -213,9 +226,10 @@ export default function DescriptiveSheetsPage() {
   }
 
   const handleDownloadExisting = (property: Property) => {
-    if (property.energy?.descriptiveSheetPdfUrl) {
+    const descriptiveSheetPdfUrl = getDocumentUrl(property.documents, "DESCRIPTIVE_SHEET_PDF")
+    if (descriptiveSheetPdfUrl) {
       // Open the PDF in a new tab
-      window.open(property.energy.descriptiveSheetPdfUrl, "_blank")
+      window.open(descriptiveSheetPdfUrl, "_blank")
       toast({
         title: "PDF ouvert",
         description: `La fiche descriptive "${property.reference}" s'ouvre dans un nouvel onglet.`,
@@ -287,7 +301,7 @@ export default function DescriptiveSheetsPage() {
                 const hasEnoughPhotos = property.images.length >= 1
                 const hasDescription = property.description && property.description.trim().length >= 50
                 const canGenerate = hasEnoughPhotos && hasDescription
-                const hasExistingDpe = property.energy?.dpeImageUrl && property.energy?.gesImageUrl
+                const hasExistingDpe = getDocumentUrl(property.documents, "DPE_IMAGE") && getDocumentUrl(property.documents, "GES_IMAGE")
 
               return (
                 <div
@@ -379,7 +393,7 @@ export default function DescriptiveSheetsPage() {
 
                       {property.energy?.descriptiveSheetGenerated ? (
                         <>
-                          {property.energy?.descriptiveSheetPdfUrl && (
+                          {getDocumentUrl(property.documents, "DESCRIPTIVE_SHEET_PDF") && (
                           <Button
                             variant="outline"
                             size="sm"

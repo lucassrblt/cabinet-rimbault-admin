@@ -1,24 +1,24 @@
-"use client"
+"use client";
 
-import { UseFormReturn } from "react-hook-form"
+import { UseFormReturn } from "react-hook-form";
 import {
   FormControl,
   FormDescription,
   FormField,
   FormItem,
-} from "@/components/ui/form"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckboxField } from "../components/CheckboxField"
-import { ImageUploader } from "../components/ImageUploader"
-import type { PropertyFormData, PropertyImageData } from "../types"
+} from "@/components/ui/form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckboxField } from "../components/CheckboxField";
+import { ImageUploader } from "../components/ImageUploader";
+import type { PropertyFormData, PropertyImageData } from "../types";
 
 interface ImagesStepProps {
-  form: UseFormReturn<PropertyFormData>
-  existingImages: PropertyImageData[]
-  newImages: File[]
-  setNewImages: React.Dispatch<React.SetStateAction<File[]>>
-  onDeleteImage: (imageId: string) => Promise<void>
-  onSetMainImage: (imageId: string) => Promise<void>
+  form: UseFormReturn<PropertyFormData>;
+  existingImages: PropertyImageData[];
+  newImages: File[];
+  setNewImages: React.Dispatch<React.SetStateAction<File[]>>;
+  onDeleteImage: (imageId: string) => Promise<void>;
+  onSetMainImage: (imageId: string) => Promise<void>;
 }
 
 export function ImagesStep({
@@ -43,7 +43,9 @@ export function ImagesStep({
       {/* Publication options */}
       <Card className="shadow-card">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold">Options de publication</CardTitle>
+          <CardTitle className="text-base font-semibold">
+            Options de publication
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <FormField
@@ -77,7 +79,26 @@ export function ImagesStep({
                   />
                 </FormControl>
                 <FormDescription className="ml-6">
-                  L&apos;annonce apparaîtra en premier sur la page d&apos;accueil
+                  L&apos;annonce apparaîtra en premier sur la page
+                  d&apos;accueil
+                </FormDescription>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="isExclusive"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <CheckboxField
+                    label="Exclusivité"
+                    checked={field.value}
+                    onChange={field.onChange}
+                  />
+                </FormControl>
+                <FormDescription className="ml-6">
+                  Cette annonce est une exclusivité de l&apos;agence
                 </FormDescription>
               </FormItem>
             )}
@@ -85,6 +106,5 @@ export function ImagesStep({
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
-

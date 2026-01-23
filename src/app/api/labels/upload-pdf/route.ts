@@ -2,10 +2,12 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { uploadToStorage, BUCKETS } from "@/lib/supabase"
 import { requireAuth } from "@/lib/api-auth"
+import { upsertPropertyDocument } from "@/lib/documents"
 
 /**
  * POST /api/labels/upload-pdf
  * Upload a generated PDF label to the 'property-files' bucket under [reference]/labels/
+ * Stores the document in PropertyDocument table with type LABEL_PDF
  */
 export async function POST(request: Request) {
   // Vérification de l'authentification
@@ -71,29 +73,27 @@ export async function POST(request: Request) {
       )
     }
 
-    // Update property energy table with PDF URL
-    if (property.energy) {
-      await prisma.propertyEnergy.update({
-        where: { propertyId: propertyId },
-        data: {
-          labelPdfUrl: pdfUrl,
-        },
-      })
-    } else {
-      // Create energy record if it doesn't exist
-      await prisma.propertyEnergy.create({
-        data: {
-          propertyId: propertyId,
-          labelPdfUrl: pdfUrl,
-        },
-      })
-    }
+    // Store document in PropertyDocument table
+    await upsertPropertyDocument({
+      propertyId,
+      type: "LABEL_PDF",
+      url: pdfUrl!,
+      name: `${property.reference}_etiquette.pdf`,
+      size: file.size,
+      mimeType: "application/pdf",
+      description: "Étiquette énergie vitrine",
+    })
 
-    // Fetch updated property
+    // Fetch updated property with documents
     const updatedProperty = await prisma.property.findUnique({
       where: { id: propertyId },
       include: {
         energy: true,
+        documents: {
+          where: { type: "LABEL_PDF" },
+          take: 1,
+          orderBy: { createdAt: "desc" },
+        },
       },
     })
 
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
       property: {
         id: updatedProperty?.id,
         reference: updatedProperty?.reference,
-        labelPdfUrl: updatedProperty?.energy?.labelPdfUrl,
+        labelPdfUrl: updatedProperty?.documents[0]?.url ?? null,
       },
     })
   } catch (error) {

@@ -1,20 +1,20 @@
-"use client"
+"use client";
 
-import { UseFormReturn } from "react-hook-form"
-import { Input } from "@/components/ui/input"
+import { UseFormReturn } from "react-hook-form";
+import { Input } from "@/components/ui/input";
 import {
   FormControl,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckboxField } from "../components/CheckboxField"
-import type { PropertyFormData } from "../types"
+} from "@/components/ui/form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckboxField } from "../components/CheckboxField";
+import type { PropertyFormData } from "../types";
 
 interface DetailsStepProps {
-  form: UseFormReturn<PropertyFormData>
+  form: UseFormReturn<PropertyFormData>;
 }
 
 export function DetailsStep({ form }: DetailsStepProps) {
@@ -23,7 +23,9 @@ export function DetailsStep({ form }: DetailsStepProps) {
       {/* Caractéristiques */}
       <Card className="shadow-card">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold">Caractéristiques</CardTitle>
+          <CardTitle className="text-base font-semibold">
+            Caractéristiques
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -35,8 +37,15 @@ export function DetailsStep({ form }: DetailsStepProps) {
                   <FormLabel>Surface habitable *</FormLabel>
                   <FormControl>
                     <div className="relative">
-                      <Input type="number" placeholder="65" {...field} className="pr-10" />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">m²</span>
+                      <Input
+                        type="number"
+                        placeholder="65"
+                        {...field}
+                        className="pr-10"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                        m²
+                      </span>
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -51,15 +60,21 @@ export function DetailsStep({ form }: DetailsStepProps) {
                   <FormLabel>Surface terrain</FormLabel>
                   <FormControl>
                     <div className="relative">
-                      <Input 
-                        type="number" 
-                        placeholder="500" 
-                        {...field} 
+                      <Input
+                        type="number"
+                        placeholder="500"
+                        {...field}
                         value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
-                        className="pr-10" 
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
+                        className="pr-10"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">m²</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                        m²
+                      </span>
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -100,9 +115,55 @@ export function DetailsStep({ form }: DetailsStepProps) {
               name="bathrooms"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Salles de bain</FormLabel>
+                  <FormLabel>Salles de bain (avec baignoire)</FormLabel>
                   <FormControl>
                     <Input type="number" min={0} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="showerRooms"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Salles d&apos;eau (avec douche)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value ? Number(e.target.value) : null,
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="toilets"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>WC</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value ? Number(e.target.value) : null,
+                        )
+                      }
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -115,12 +176,16 @@ export function DetailsStep({ form }: DetailsStepProps) {
                 <FormItem>
                   <FormLabel>Étage</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      min={0} 
-                      {...field} 
+                    <Input
+                      type="number"
+                      min={0}
+                      {...field}
                       value={field.value ?? ""}
-                      onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value ? Number(e.target.value) : null,
+                        )
+                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -134,12 +199,16 @@ export function DetailsStep({ form }: DetailsStepProps) {
                 <FormItem>
                   <FormLabel>Nombre d&apos;étages</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      min={0} 
-                      {...field} 
+                    <Input
+                      type="number"
+                      min={0}
+                      {...field}
                       value={field.value ?? ""}
-                      onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value ? Number(e.target.value) : null,
+                        )
+                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -153,12 +222,16 @@ export function DetailsStep({ form }: DetailsStepProps) {
                 <FormItem>
                   <FormLabel>Année de construction</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="1990" 
-                      {...field} 
+                    <Input
+                      type="number"
+                      placeholder="1990"
+                      {...field}
                       value={field.value ?? ""}
-                      onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value ? Number(e.target.value) : null,
+                        )
+                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -330,12 +403,16 @@ export function DetailsStep({ form }: DetailsStepProps) {
                   <FormItem>
                     <FormLabel>Nombre de lots</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        min={1} 
-                        {...field} 
+                      <Input
+                        type="number"
+                        min={1}
+                        {...field}
                         value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -350,14 +427,20 @@ export function DetailsStep({ form }: DetailsStepProps) {
                     <FormLabel>Charges annuelles</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Input 
-                          type="number" 
-                          {...field} 
+                        <Input
+                          type="number"
+                          {...field}
                           value={field.value ?? ""}
-                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
-                          className="pr-8" 
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value ? Number(e.target.value) : null,
+                            )
+                          }
+                          className="pr-8"
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">€</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                          €
+                        </span>
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -384,6 +467,5 @@ export function DetailsStep({ form }: DetailsStepProps) {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
-

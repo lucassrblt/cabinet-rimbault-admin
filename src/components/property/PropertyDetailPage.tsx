@@ -29,6 +29,13 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
+interface PropertyDocument {
+  id: string
+  name: string
+  url: string
+  type: string
+}
+
 interface PropertyData {
   id: string
   title: string
@@ -58,16 +65,22 @@ interface PropertyData {
     dpeValue?: number
     gesClass?: string
     gesValue?: number
-    dpeImageUrl?: string | null
-    gesImageUrl?: string | null
   }
   copro?: {
     lots?: number
     charges?: number
   }
   images: string[]
+  documents?: PropertyDocument[]
   isExclusive?: boolean
   isNew?: boolean
+}
+
+// Helper pour extraire les URLs des documents
+function getDocumentUrl(documents: PropertyDocument[] | undefined, type: string): string | null {
+  if (!documents) return null
+  const doc = documents.find(d => d.type === type)
+  return doc?.url ?? null
 }
 
 interface PropertyDetailPageProps {
@@ -806,16 +819,16 @@ export function PropertyDetailPage({
             </TabsContent>
 
             <TabsContent value="diagnostics" className="mt-0">
-              {/* Images générées depuis l'API */}
-              {(property.energy.dpeImageUrl || property.energy.gesImageUrl) ? (
+              {/* Images générées depuis les documents */}
+              {(getDocumentUrl(property.documents, "DPE_IMAGE") || getDocumentUrl(property.documents, "GES_IMAGE")) ? (
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {property.energy.dpeImageUrl && (
+                    {getDocumentUrl(property.documents, "DPE_IMAGE") && (
                       <div className="space-y-3">
                         <h4 className="text-sm font-semibold text-slate-700">Diagnostic de Performance Énergétique (DPE)</h4>
                         <div className="relative aspect-[3/4] bg-slate-50 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
                           <Image
-                            src={property.energy.dpeImageUrl}
+                            src={getDocumentUrl(property.documents, "DPE_IMAGE")!}
                             alt="Étiquette DPE"
                             fill
                             className="object-contain"
@@ -828,12 +841,12 @@ export function PropertyDetailPage({
                         )}
                       </div>
                     )}
-                    {property.energy.gesImageUrl && (
+                    {getDocumentUrl(property.documents, "GES_IMAGE") && (
                       <div className="space-y-3">
                         <h4 className="text-sm font-semibold text-slate-700">Émissions de Gaz à Effet de Serre (GES)</h4>
                         <div className="relative aspect-[3/4] bg-slate-50 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
                           <Image
-                            src={property.energy.gesImageUrl}
+                            src={getDocumentUrl(property.documents, "GES_IMAGE")!}
                             alt="Étiquette GES"
                             fill
                             className="object-contain"
@@ -856,7 +869,7 @@ export function PropertyDetailPage({
                 </div>
               )}
               
-              {property.energy.dpeValue && property.energy.gesValue && !property.energy.dpeImageUrl && !property.energy.gesImageUrl && (
+              {property.energy.dpeValue && property.energy.gesValue && !getDocumentUrl(property.documents, "DPE_IMAGE") && !getDocumentUrl(property.documents, "GES_IMAGE") && (
                 <div className="mt-6 p-4 bg-slate-50 rounded-xl">
                   <p className="text-sm text-slate-600">
                     <strong>DPE :</strong> {property.energy.dpeValue} kWh/m²/an • 

@@ -15,7 +15,8 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma db push --force-reset && npm run db:seed",
-    "generate:labels": "node scripts/generate-test-labels.cjs"
+    "generate:labels": "node scripts/generate-test-labels.cjs",
+    "prepare": "husky"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -63,6 +64,7 @@
     "@vitejs/plugin-react": "^5.1.2",
     "eslint": "^8",
     "eslint-config-next": "^15.5.9",
+    "husky": "^9.1.7",
     "jsdom": "^27.4.0",
     "postcss": "^8",
     "prisma": "^5.22.0",

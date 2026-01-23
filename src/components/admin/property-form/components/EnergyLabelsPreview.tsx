@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import type { PropertyFormData, PropertyApiData } from "../types"
+import { getDocumentUrls } from "../types"
 
 interface EnergyLabelsPreviewProps {
   form: UseFormReturn<PropertyFormData>
@@ -34,9 +35,10 @@ export function EnergyLabelsPreview({
   const { toast } = useToast()
   const [hasChanges, setHasChanges] = useState(false)
 
-  // URLs actuelles (depuis les données initiales)
-  const currentDpeUrl = initialData?.energy?.dpeImageUrl
-  const currentGesUrl = initialData?.energy?.gesImageUrl
+  // URLs actuelles (depuis les documents)
+  const docUrls = getDocumentUrls(initialData?.documents)
+  const currentDpeUrl = docUrls.dpeImageUrl
+  const currentGesUrl = docUrls.gesImageUrl
   
   // Valeurs initiales pour comparaison
   const initialEnergyClass = initialData?.energy?.energyClass

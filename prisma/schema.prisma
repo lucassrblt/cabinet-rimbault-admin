@@ -258,6 +258,15 @@ enum ImageCategory {
 
 // Type de document
 enum DocumentType {
+  // Images d'étiquettes énergie
+  DPE_IMAGE
+  GES_IMAGE
+  
+  // PDFs générés
+  LABEL_PDF
+  DESCRIPTIVE_SHEET_PDF
+  
+  // Diagnostics
   DPE
   DIAGNOSTIC_AMIANTE
   DIAGNOSTIC_PLOMB
@@ -265,9 +274,13 @@ enum DocumentType {
   DIAGNOSTIC_GAZ
   DIAGNOSTIC_TERMITES
   ERNMT
+  
+  // Documents copropriété
   CARNET_ENTRETIEN
   REGLEMENT_COPRO
   PV_AG
+  
+  // Autres
   PLAN
   AUTRE
 }
@@ -661,7 +674,7 @@ model PropertyEnergy {
   propertyId String   @unique
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
-  // DPE
+  // DPE - Données (les images sont dans PropertyDocument avec type DPE_IMAGE/GES_IMAGE)
   energyClass         EnergyClass?
   energyValue         Int?
   gesClass            EnergyClass?
@@ -671,19 +684,15 @@ model PropertyEnergy {
   annualEnergyCost    Float?
   annualEnergyCostMin Float?
   annualEnergyCostMax Float?
-  dpeImageUrl         String?
-  gesImageUrl         String?
 
-  // Étiquettes vitrine
+  // Étiquettes vitrine - Métadonnées (le PDF est dans PropertyDocument avec type LABEL_PDF)
   labelGenerated   Boolean   @default(false)
   labelGeneratedAt DateTime?
-  labelPdfUrl      String?
   labelColor       String?
 
-  // Fiches descriptives
+  // Fiches descriptives - Métadonnées (le PDF est dans PropertyDocument avec type DESCRIPTIVE_SHEET_PDF)
   descriptiveSheetGenerated   Boolean   @default(false)
   descriptiveSheetGeneratedAt DateTime?
-  descriptiveSheetPdfUrl      String?
 
   // Chauffage
   heatingType        HeatingType?
@@ -775,16 +784,21 @@ model PropertyImage {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model PropertyDocument {
-  id         String       @id @default(cuid())
-  name       String
-  url        String
-  type       DocumentType
-  size       Int?
-  propertyId String
-  property   Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  createdAt  DateTime     @default(now())
+  id          String       @id @default(cuid())
+  name        String
+  url         String
+  type        DocumentType
+  size        Int?
+  mimeType    String?
+  description String?
+  propertyId  String
+  property    Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   @@index([propertyId])
+  @@index([type])
+  @@index([propertyId, type])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

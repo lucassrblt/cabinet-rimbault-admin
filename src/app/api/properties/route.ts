@@ -1,68 +1,69 @@
-import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/api-auth"
-import { Prisma, TransactionType } from "@prisma/client"
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/api-auth";
+import { Prisma, TransactionType } from "@prisma/client";
+import { autoGenerateEnergyLabels } from "@/lib/energy-labels/auto-generate";
 
 // GET /api/properties - Liste des annonces
 export async function GET(request: Request) {
-  const authResult = await requireAuth()
+  const authResult = await requireAuth();
   if (!authResult.authenticated) {
-    return authResult.response
+    return authResult.response;
   }
 
   try {
-    const { searchParams } = new URL(request.url)
-    const labelFilter = searchParams.get("labelFilter")
-    const descriptiveSheetFilter = searchParams.get("descriptiveSheetFilter")
-    const postalCode = searchParams.get("postalCode")
-    const transactionType = searchParams.get("transactionType")
-    
-    const whereClause: Prisma.PropertyWhereInput = {}
-    
+    const { searchParams } = new URL(request.url);
+    const labelFilter = searchParams.get("labelFilter");
+    const descriptiveSheetFilter = searchParams.get("descriptiveSheetFilter");
+    const postalCode = searchParams.get("postalCode");
+    const transactionType = searchParams.get("transactionType");
+
+    const whereClause: Prisma.PropertyWhereInput = {};
+
     // Build energy filter conditions
-    const energyConditions: Prisma.PropertyEnergyWhereInput = {}
-    let hasEnergyFilter = false
-    
+    const energyConditions: Prisma.PropertyEnergyWhereInput = {};
+    let hasEnergyFilter = false;
+
     // Handle label filter
     if (labelFilter === "generated") {
-      energyConditions.labelGenerated = true
-      hasEnergyFilter = true
+      energyConditions.labelGenerated = true;
+      hasEnergyFilter = true;
     } else if (labelFilter === "not_generated") {
       whereClause.OR = [
         { energy: null },
-        { energy: { labelGenerated: false } }
-      ]
+        { energy: { labelGenerated: false } },
+      ];
     }
-    
+
     // Handle descriptive sheet filter
     if (descriptiveSheetFilter === "generated") {
-      energyConditions.descriptiveSheetGenerated = true
-      hasEnergyFilter = true
+      energyConditions.descriptiveSheetGenerated = true;
+      hasEnergyFilter = true;
     } else if (descriptiveSheetFilter === "not_generated") {
       // Only set this if no other OR condition is set
       if (!whereClause.OR) {
         whereClause.OR = [
           { energy: null },
-          { energy: { descriptiveSheetGenerated: false } }
-        ]
+          { energy: { descriptiveSheetGenerated: false } },
+        ];
       }
     }
-    
+
     // Apply energy conditions if any
     if (hasEnergyFilter) {
-      whereClause.energy = energyConditions
+      whereClause.energy = energyConditions;
     }
-    
+
     // Handle postal code filter
     if (postalCode) {
       whereClause.location = {
         postalCode: postalCode,
-      }
+      };
     }
-    
+
     // Handle transaction type filter
     if (transactionType) {
-      whereClause.transactionType = transactionType as TransactionType
+      whereClause.transactionType = transactionType as TransactionType;
     }
     // "all" or no filter = return all properties (empty where clause)
 
@@ -80,29 +81,30 @@ export async function GET(request: Request) {
           orderBy: { order: "asc" },
           take: 5,
         },
+        documents: true,
       },
-    })
+    });
 
-    return NextResponse.json(properties)
+    return NextResponse.json(properties);
   } catch (error) {
-    console.error("Error fetching properties:", error)
+    console.error("Error fetching properties:", error);
     return NextResponse.json(
       { error: "Erreur lors de la récupération des annonces" },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 }
 
 // POST /api/properties - Créer une annonce
 export async function POST(request: Request) {
-  const authResult = await requireAuth()
+  const authResult = await requireAuth();
   if (!authResult.authenticated) {
-    return authResult.response
+    return authResult.response;
   }
 
   try {
-    const body = await request.json()
-    const userId = authResult.session.user.id
+    const body = await request.json();
+    const userId = authResult.session.user.id;
 
     const {
       finance,
@@ -112,7 +114,7 @@ export async function POST(request: Request) {
       energy,
       copro,
       ...propertyData
-    } = body
+    } = body;
 
     // Création avec transaction pour assurer la cohérence
     const property = await prisma.$transaction(async (tx) => {
@@ -129,56 +131,102 @@ export async function POST(request: Request) {
           status: propertyData.status || "DISPONIBLE",
           condition: propertyData.condition,
           standing: propertyData.standing,
-          availableFrom: propertyData.availableFrom ? new Date(propertyData.availableFrom) : null,
+          availableFrom: propertyData.availableFrom
+            ? new Date(propertyData.availableFrom)
+            : null,
           isPublished: propertyData.isPublished || false,
           isFeatured: propertyData.isFeatured || false,
           isExclusive: propertyData.isExclusive || false,
           internalNotes: propertyData.internalNotes,
           userId,
         },
-      })
+      });
 
       // Créer les sous-tables si les données sont fournies
       if (finance) {
         await tx.propertyFinance.create({
           data: { ...finance, propertyId: newProperty.id },
-        })
+        });
       }
 
       if (location) {
         await tx.propertyLocation.create({
           data: { ...location, propertyId: newProperty.id },
-        })
+        });
       }
 
       if (characteristics) {
         await tx.propertyCharacteristics.create({
           data: { ...characteristics, propertyId: newProperty.id },
-        })
+        });
       }
 
       if (amenities) {
         await tx.propertyAmenities.create({
           data: { ...amenities, propertyId: newProperty.id },
-        })
+        });
       }
 
       if (energy) {
         await tx.propertyEnergy.create({
           data: { ...energy, propertyId: newProperty.id },
-        })
+        });
       }
 
       if (copro) {
         await tx.propertyCopro.create({
           data: { ...copro, propertyId: newProperty.id },
-        })
+        });
       }
 
-      return newProperty
-    })
+      return newProperty;
+    });
 
-    // Récupérer l'annonce complète
+    // Générer les labels DPE et GES si les données sont fournies
+    if (
+      energy?.energyClass &&
+      energy?.energyValue &&
+      energy?.gesClass &&
+      energy?.gesValue
+    ) {
+      const shouldGenerateLabels =
+        energy.energyClass !== "VIERGE" && energy.gesClass !== "VIERGE";
+
+      if (shouldGenerateLabels) {
+        console.log(
+          `[API POST] Génération des labels DPE/GES pour la propriété ${property.id}...`,
+        );
+        try {
+          const labelResult = await autoGenerateEnergyLabels({
+            propertyId: property.id,
+            reference: propertyData.reference,
+            energyValue: energy.energyValue,
+            energyClass: energy.energyClass,
+            gesValue: energy.gesValue,
+            gesClass: energy.gesClass,
+          });
+
+          if (labelResult.success) {
+            console.log(
+              `[API POST] Labels DPE/GES générés avec succès pour ${property.id}`,
+            );
+          } else {
+            console.warn(
+              `[API POST] Échec génération labels pour ${property.id}:`,
+              labelResult.error,
+            );
+          }
+        } catch (labelError) {
+          console.error(
+            `[API POST] Erreur lors de la génération des labels pour ${property.id}:`,
+            labelError,
+          );
+          // Ne pas bloquer la création de la propriété si la génération échoue
+        }
+      }
+    }
+
+    // Récupérer l'annonce complète avec les documents générés
     const fullProperty = await prisma.property.findUnique({
       where: { id: property.id },
       include: {
@@ -189,23 +237,24 @@ export async function POST(request: Request) {
         energy: true,
         copro: true,
         images: true,
+        documents: true,
       },
-    })
+    });
 
-    return NextResponse.json(fullProperty, { status: 201 })
+    return NextResponse.json(fullProperty, { status: 201 });
   } catch (error) {
-    console.error("Error creating property:", error)
-    
+    console.error("Error creating property:", error);
+
     if (error instanceof Error && error.message.includes("Unique constraint")) {
       return NextResponse.json(
         { error: "La référence de l'annonce existe déjà" },
-        { status: 400 }
-      )
+        { status: 400 },
+      );
     }
 
     return NextResponse.json(
       { error: "Erreur lors de la création de l'annonce" },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 }

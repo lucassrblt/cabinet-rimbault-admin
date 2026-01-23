@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { uploadToStorage, BUCKETS } from "@/lib/supabase"
 import { requireAuth } from "@/lib/api-auth"
 import { generateDpeSvg, generateGesSvg, type DpeClass, type GesClass } from "@/lib/energy-labels"
 
@@ -14,8 +13,8 @@ interface PreviewEnergyRequest {
 
 /**
  * POST /api/labels/preview-energy
- * Preview DPE/GES images before generating the final label
- * Generates SVG labels locally and stores them in the 'property-files' bucket under [reference]/labels/
+ * Preview DPE/GES images before generating the final label.
+ * Returns data URLs only — no storage upload.
  */
 export async function POST(request: Request) {
   // Vérification de l'authentification
@@ -83,73 +82,32 @@ export async function POST(request: Request) {
       )
     }
 
-    // Generate DPE SVG locally
+    // Generate DPE SVG locally (preview only — no upload)
     console.log(`Generating DPE label: Class ${normalizedEnergyClass}, Value ${finalEnergyValue} kWh/m²/an`)
     const dpeSvg = generateDpeSvg(
       finalEnergyValue,
       normalizedEnergyClass as DpeClass,
       finalGesValue
     )
-    const dpeBuffer = Buffer.from(dpeSvg, 'utf-8')
 
-    // Generate GES SVG locally
+    // Generate GES SVG locally (preview only — no upload)
     console.log(`Generating GES label: Class ${normalizedGesClass}, Value ${finalGesValue} kg CO₂/m²/an`)
     const gesSvg = generateGesSvg(
       finalGesValue,
       normalizedGesClass as GesClass
     )
-    const gesBuffer = Buffer.from(gesSvg, 'utf-8')
 
-    // Generate unique filenames with timestamp in property-files/[reference]/labels/
-    const timestamp = Date.now()
-    const dpeFileName = `${property.reference}/labels/${property.reference}_dpe_${timestamp}.svg`
-    const gesFileName = `${property.reference}/labels/${property.reference}_ges_${timestamp}.svg`
+    // Return data URLs for preview; no storage upload
+    const dpeBase64 = Buffer.from(dpeSvg, 'utf-8').toString('base64')
+    const gesBase64 = Buffer.from(gesSvg, 'utf-8').toString('base64')
+    const dpeImageUrl = `data:image/svg+xml;base64,${dpeBase64}`
+    const gesImageUrl = `data:image/svg+xml;base64,${gesBase64}`
 
-    console.log(`Uploading DPE image: ${dpeFileName} (${dpeBuffer.length} bytes)`)
-    console.log(`Uploading GES image: ${gesFileName} (${gesBuffer.length} bytes)`)
-
-    // Upload DPE image to 'property-files' bucket in labels folder
-    const { url: dpeUrl, error: dpeError } = await uploadToStorage(
-      BUCKETS.PROPERTY_FILES,
-      dpeFileName,
-      dpeBuffer,
-      'image/svg+xml'
-    )
-
-    if (dpeError) {
-      console.error("Error uploading DPE image:", dpeError)
-      return NextResponse.json(
-        { error: "Erreur lors de l'upload de l'image DPE dans Supabase Storage" },
-        { status: 500 }
-      )
-    }
-
-    console.log(`DPE image uploaded successfully: ${dpeUrl}`)
-
-    // Upload GES image to 'property-files' bucket in labels folder
-    const { url: gesUrl, error: gesError } = await uploadToStorage(
-      BUCKETS.PROPERTY_FILES,
-      gesFileName,
-      gesBuffer,
-      'image/svg+xml'
-    )
-
-    if (gesError) {
-      console.error("Error uploading GES image:", gesError)
-      return NextResponse.json(
-        { error: "Erreur lors de l'upload de l'image GES dans Supabase Storage" },
-        { status: 500 }
-      )
-    }
-
-    console.log(`GES image uploaded successfully: ${gesUrl}`)
-
-    // Return preview data with URLs
     return NextResponse.json({
       success: true,
       preview: {
-        dpeImageUrl: dpeUrl,
-        gesImageUrl: gesUrl,
+        dpeImageUrl,
+        gesImageUrl,
         energyValue: finalEnergyValue,
         energyClass: normalizedEnergyClass,
         gesValue: finalGesValue,
