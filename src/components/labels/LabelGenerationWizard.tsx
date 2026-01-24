@@ -144,7 +144,7 @@ interface LabelGenerationWizardProps {
   defaultColor?: string;
 }
 
-const DEFAULT_COLOR = "#306fb2";
+const DEFAULT_COLOR = "#780000";
 
 // Helper function to transform nested property to flat LabelProperty format
 function toFlatLabelProperty(
@@ -269,9 +269,7 @@ export function LabelGenerationWizard({
   const [selectedPhotos, setSelectedPhotos] = useState<PropertyImage[]>([]);
 
   // Label customization
-  const [primaryColor, setPrimaryColor] = useState(
-    property.energy?.labelColor || defaultColor,
-  );
+  const [primaryColor, setPrimaryColor] = useState(defaultColor);
 
   // Updated property for preview
   const [previewProperty, setPreviewProperty] = useState<Property>(property);
@@ -295,7 +293,7 @@ export function LabelGenerationWizard({
         )
         .slice(0, 4);
       setSelectedPhotos(initialPhotos);
-      setPrimaryColor(property.energy?.labelColor || defaultColor);
+      setPrimaryColor(defaultColor);
       setPreviewProperty(property);
     }
   }, [isOpen, property, defaultColor]);

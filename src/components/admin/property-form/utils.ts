@@ -28,6 +28,7 @@ export function apiDataToFormData(
     honoraires: data.finance?.honoraires,
     honorairesType: data.finance?.honorairesType,
     honorairesPct: data.finance?.honorairesPct,
+    taxeFonciere: data.finance?.taxeFonciere,
 
     // Location
     address: data.location?.address ?? "",
@@ -110,6 +111,7 @@ export function formDataToApiData(data: PropertyFormData) {
       honoraires: data.honoraires || null,
       honorairesType: data.honorairesType || null,
       honorairesPct: data.honorairesPct || null,
+      taxeFonciere: data.taxeFonciere || null,
     },
 
     location: {

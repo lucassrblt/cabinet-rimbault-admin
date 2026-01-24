@@ -430,8 +430,12 @@ export const DescriptiveSheetPreview = forwardRef<
 
       // === SURFACES ===
       if (property.characteristics?.surface) {
+        const surfaceLabel =
+          property.transactionType === "VENTE"
+            ? "Surface Loi Carrez"
+            : "Surface Habitable";
         items.push({
-          label: "Surface",
+          label: surfaceLabel,
           value: `${property.characteristics.surface} m²`,
         });
       }
@@ -469,16 +473,21 @@ export const DescriptiveSheetPreview = forwardRef<
         });
       }
 
-      // Salles de bains / Salles d'eau
+      // Salles de bains (avec baignoire)
       const sdb = property.characteristics?.bathrooms || 0;
-      const sde = property.characteristics?.showerRooms || 0;
-      if (sdb > 0 || sde > 0) {
-        const parts: string[] = [];
-        if (sdb > 0) parts.push(`${sdb} SdB`);
-        if (sde > 0) parts.push(`${sde} SdE`);
+      if (sdb > 0) {
         items.push({
-          label: "Salles d'eau",
-          value: parts.join(" + "),
+          label: "Salle de bain",
+          value: String(sdb),
+        });
+      }
+
+      // Salles d'eau (avec douche)
+      const sde = property.characteristics?.showerRooms || 0;
+      if (sde > 0) {
+        items.push({
+          label: "Salle d'eau",
+          value: String(sde),
         });
       }
 
@@ -667,7 +676,11 @@ export const DescriptiveSheetPreview = forwardRef<
       }
 
       // === FINANCES ===
-      if (property.finance?.taxeFonciere) {
+      // La taxe foncière n'est pertinente que pour les ventes (payée par le propriétaire)
+      if (
+        property.transactionType === "VENTE" &&
+        property.finance?.taxeFonciere
+      ) {
         items.push({
           label: "Taxe foncière",
           value: `${property.finance.taxeFonciere.toLocaleString("fr-FR")} €/an`,
@@ -675,19 +688,11 @@ export const DescriptiveSheetPreview = forwardRef<
       }
 
       // === COPROPRIÉTÉ ===
-      if (property.copro?.isInCopro) {
-        if (property.copro.coprLots) {
-          items.push({
-            label: "Lots copropriété",
-            value: String(property.copro.coprLots),
-          });
-        }
-        if (property.copro.coprCharges) {
-          items.push({
-            label: "Charges copro",
-            value: `${property.copro.coprCharges.toLocaleString("fr-FR")} €/an`,
-          });
-        }
+      if (property.copro?.isInCopro && property.copro.coprCharges) {
+        items.push({
+          label: "Charges copro",
+          value: `${property.copro.coprCharges.toLocaleString("fr-FR")} €/an`,
+        });
       }
 
       return items;
@@ -736,7 +741,7 @@ export const DescriptiveSheetPreview = forwardRef<
         {/* Header bleu avec infos agence - pleine largeur */}
         <div
           style={{
-            backgroundColor: "#1a5490",
+            backgroundColor: "#780000",
             color: "white",
             padding: "20px 24px",
             display: "flex",
@@ -768,12 +773,13 @@ export const DescriptiveSheetPreview = forwardRef<
             )}
             {agencyContacts.phone && <div>Tel : {agencyContacts.phone}</div>}
             {agencyContacts.email && <div>Email : {agencyContacts.email}</div>}
+            <div>Xavier Rimbault</div>
           </div>
         </div>
 
         {/* Section principale avec titre, référence et prix */}
         <div
-          style={{ padding: "20px 24px", borderBottom: "3px solid #1a5490" }}
+          style={{ padding: "20px 24px", borderBottom: "3px solid #780000" }}
         >
           <div
             style={{
@@ -788,7 +794,7 @@ export const DescriptiveSheetPreview = forwardRef<
                 style={{
                   fontSize: "28px",
                   fontWeight: "bold",
-                  color: "#1a5490",
+                  color: "#780000",
                   margin: "0 0 8px 0",
                   textTransform: "uppercase",
                   letterSpacing: "1px",
@@ -817,7 +823,7 @@ export const DescriptiveSheetPreview = forwardRef<
                 style={{
                   fontSize: "32px",
                   fontWeight: "bold",
-                  color: "#1a5490",
+                  color: "#780000",
                 }}
               >
                 {property.finance?.price
@@ -1013,7 +1019,7 @@ export const DescriptiveSheetPreview = forwardRef<
                 <div
                   style={{
                     width: "5px",
-                    backgroundColor: "#1a5490",
+                    backgroundColor: "#780000",
                     marginRight: "12px",
                     borderRadius: "2px",
                   }}
@@ -1089,7 +1095,7 @@ export const DescriptiveSheetPreview = forwardRef<
             <div
               style={{
                 width: "5px",
-                backgroundColor: "#1a5490",
+                backgroundColor: "#780000",
                 marginRight: "12px",
                 borderRadius: "2px",
               }}
@@ -1235,7 +1241,7 @@ export const DescriptiveSheetPreview = forwardRef<
             left: 0,
             right: 0,
             width: "100%",
-            backgroundColor: "#1a5490",
+            backgroundColor: "#780000",
             color: "white",
             padding: "14px 24px",
             textAlign: "center",
@@ -1245,9 +1251,6 @@ export const DescriptiveSheetPreview = forwardRef<
         >
           <div style={{ fontWeight: "bold", marginBottom: "4px" }}>
             {agencyContacts.name}
-          </div>
-          <div style={{ fontSize: "11px", fontWeight: "normal", opacity: 0.9 }}>
-            Document professionnel daté du {todayDate}
           </div>
         </div>
       </div>

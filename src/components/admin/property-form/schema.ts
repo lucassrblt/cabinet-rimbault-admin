@@ -66,6 +66,7 @@ export const propertyFormSchema = z.object({
     .max(100, "Le pourcentage d'honoraires ne peut pas dépasser 100%")
     .optional()
     .nullable(),
+  taxeFonciere: z.coerce.number().optional().nullable(),
 
   // Location
   address: z.string().min(5, "L'adresse est requise"),

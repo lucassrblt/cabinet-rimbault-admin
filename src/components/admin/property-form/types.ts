@@ -79,6 +79,7 @@ export interface PropertyApiData {
     honoraires?: number | null;
     honorairesType?: string | null;
     honorairesPct?: number | null;
+    taxeFonciere?: number | null;
   } | null;
   location?: {
     address: string;
