@@ -716,13 +716,6 @@ export const DescriptiveSheetPreview = forwardRef<
     const energyClass = property.energy?.energyClass || "D";
     const energyValue = property.energy?.energyValue || 0;
 
-    // Date du jour formatée
-    const todayDate = new Date().toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-
     return (
       <div
         ref={ref}

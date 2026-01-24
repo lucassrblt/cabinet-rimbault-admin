@@ -1,27 +1,33 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
-import { 
-  Tag, 
-  Eye, 
-  RefreshCw, 
-  AlertTriangle, 
-  Check, 
+import { useState, useEffect, useCallback } from "react";
+import {
+  Tag,
+  Eye,
+  RefreshCw,
+  AlertTriangle,
+  Check,
   Loader2,
   Filter,
   Image as ImageIcon,
   ExternalLink,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -29,221 +35,235 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { useToast } from "@/hooks/use-toast"
-import { LabelGenerationWizard } from "@/components/labels/LabelGenerationWizard"
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { LabelGenerationWizard } from "@/components/labels/LabelGenerationWizard";
 
 interface PropertyImage {
-  id: string
-  url: string
-  alt?: string
-  order: number
-  isMain: boolean
+  id: string;
+  url: string;
+  alt?: string;
+  order: number;
+  isMain: boolean;
 }
 
 interface PropertyDocument {
-  id: string
-  name: string
-  url: string
-  type: string
-  size?: number | null
-  mimeType?: string | null
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  size?: number | null;
+  mimeType?: string | null;
 }
 
 interface PropertyEnergy {
-  id: string
-  energyClass?: string | null
-  energyValue?: number | null
-  gesClass?: string | null
-  gesValue?: number | null
-  labelGenerated: boolean
-  labelGeneratedAt?: string | null
-  labelColor?: string | null
+  id: string;
+  energyClass?: string | null;
+  energyValue?: number | null;
+  gesClass?: string | null;
+  gesValue?: number | null;
+  labelGenerated: boolean;
+  labelGeneratedAt?: string | null;
+  labelColor?: string | null;
 }
 
 // Helper pour extraire les URLs des documents
-function getDocumentUrl(documents: PropertyDocument[] | undefined, type: string): string | null {
-  if (!documents) return null
-  const doc = documents.find(d => d.type === type)
-  return doc?.url ?? null
+function getDocumentUrl(
+  documents: PropertyDocument[] | undefined,
+  type: string,
+): string | null {
+  if (!documents) return null;
+  const doc = documents.find((d) => d.type === type);
+  return doc?.url ?? null;
 }
 
 interface PropertyFinance {
-  price: number
-  honoraires?: number | null
-  honorairesType?: string | null
-  honorairesPct?: number | null
+  price: number;
+  honoraires?: number | null;
+  honorairesType?: string | null;
+  honorairesPct?: number | null;
 }
 
 interface PropertyLocation {
-  city: string
-  postalCode: string
-  neighborhood?: string | null
+  city: string;
+  postalCode: string;
+  neighborhood?: string | null;
 }
 
 interface PropertyCharacteristics {
-  surface: number
-  surfaceCarrez?: number | null
-  rooms: number
-  bedrooms: number
-  bathrooms: number
-  floor?: number | null
-  totalFloors?: number | null
-  surfaceTerrain?: number | null
-  surfaceSejour?: number | null
-  surfaceBalcon?: number | null
-  surfaceCave?: number | null
+  surface: number;
+  surfaceCarrez?: number | null;
+  rooms: number;
+  bedrooms: number;
+  bathrooms: number;
+  floor?: number | null;
+  totalFloors?: number | null;
+  surfaceTerrain?: number | null;
+  surfaceSejour?: number | null;
+  surfaceBalcon?: number | null;
+  surfaceCave?: number | null;
 }
 
 interface PropertyAmenities {
-  hasBalcony?: boolean
-  hasTerrace?: boolean
-  hasGarden?: boolean
-  hasParking?: boolean
-  hasGarage?: boolean
-  hasCellar?: boolean
-  hasElevator?: boolean
-  hasPool?: boolean
+  hasBalcony?: boolean;
+  hasTerrace?: boolean;
+  hasGarden?: boolean;
+  hasParking?: boolean;
+  hasGarage?: boolean;
+  hasCellar?: boolean;
+  hasElevator?: boolean;
+  hasPool?: boolean;
 }
 
 interface PropertyCopro {
-  isInCopro?: boolean
-  coprLots?: number | null
-  coprCharges?: number | null
+  isInCopro?: boolean;
+  coprLots?: number | null;
+  coprCharges?: number | null;
 }
 
 interface Property {
-  id: string
-  reference: string
-  title: string
-  description: string
-  propertyType: string
-  transactionType: string
-  status: string
-  finance: PropertyFinance | null
-  location: PropertyLocation | null
-  characteristics: PropertyCharacteristics | null
-  amenities: PropertyAmenities | null
-  energy: PropertyEnergy | null
-  copro: PropertyCopro | null
-  images: PropertyImage[]
-  documents?: PropertyDocument[]
+  id: string;
+  reference: string;
+  title: string;
+  description: string;
+  propertyType: string;
+  transactionType: string;
+  status: string;
+  finance: PropertyFinance | null;
+  location: PropertyLocation | null;
+  characteristics: PropertyCharacteristics | null;
+  amenities: PropertyAmenities | null;
+  energy: PropertyEnergy | null;
+  copro: PropertyCopro | null;
+  images: PropertyImage[];
+  documents?: PropertyDocument[];
 }
 
-const DEFAULT_COLOR = "#780000"
+const DEFAULT_COLOR = "#780000";
 
 export default function LabelsPage() {
-  const { toast } = useToast()
-  const [properties, setProperties] = useState<Property[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [labelFilter, setLabelFilter] = useState<"all" | "generated" | "not_generated">("all")
-  const [previewProperty, setPreviewProperty] = useState<Property | null>(null)
-  
+  const { toast } = useToast();
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [labelFilter, setLabelFilter] = useState<
+    "all" | "generated" | "not_generated"
+  >("all");
+  const [previewProperty, setPreviewProperty] = useState<Property | null>(null);
+
   // Wizard state
-  const [wizardProperty, setWizardProperty] = useState<Property | null>(null)
-  const [showWizard, setShowWizard] = useState(false)
-  
+  const [wizardProperty, setWizardProperty] = useState<Property | null>(null);
+  const [showWizard, setShowWizard] = useState(false);
+
   // Validation errors
-  const [validationError, setValidationError] = useState<string | null>(null)
-  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(
+    null,
+  );
 
   const fetchProperties = useCallback(async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const response = await fetch(`/api/properties?labelFilter=${labelFilter}`)
-      if (!response.ok) throw new Error("Erreur lors du chargement")
-      const data = await response.json()
-      setProperties(data)
-      
+      const response = await fetch(
+        `/api/properties?labelFilter=${labelFilter}`,
+      );
+      if (!response.ok) throw new Error("Erreur lors du chargement");
+      const data = await response.json();
+      setProperties(data);
+
       // Message selon le filtre appliqué
-      const filterMessage = labelFilter === "generated" 
-        ? "avec étiquette générée"
-        : labelFilter === "not_generated"
-        ? "sans étiquette"
-        : ""
-      
+      const filterMessage =
+        labelFilter === "generated"
+          ? "avec étiquette générée"
+          : labelFilter === "not_generated"
+            ? "sans étiquette"
+            : "";
+
       if (data.length > 0) {
         toast({
           title: "Annonces chargées",
-          description: `${data.length} annonce${data.length > 1 ? "s" : ""} ${filterMessage}`.trim(),
-        })
+          description:
+            `${data.length} annonce${data.length > 1 ? "s" : ""} ${filterMessage}`.trim(),
+        });
       }
     } catch (error) {
-      console.error("Error fetching properties:", error)
+      console.error("Error fetching properties:", error);
       toast({
         title: "Erreur de chargement",
-        description: "Impossible de charger les annonces. Vérifiez votre connexion.",
+        description:
+          "Impossible de charger les annonces. Vérifiez votre connexion.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [labelFilter, toast])
+  }, [labelFilter, toast]);
 
   useEffect(() => {
-    fetchProperties()
-  }, [fetchProperties])
+    fetchProperties();
+  }, [fetchProperties]);
 
   const validatePropertyForLabel = (property: Property): string | null => {
     if (!property.energy?.energyClass || !property.energy?.energyValue) {
-      return "Les données DPE (classe et valeur) sont requises"
+      return "Les données DPE (classe et valeur) sont requises";
     }
     if (!property.energy?.gesClass || !property.energy?.gesValue) {
-      return "Les données GES (classe et valeur) sont requises"
+      return "Les données GES (classe et valeur) sont requises";
     }
-    return null
-  }
+    return null;
+  };
 
   const handleOpenWizard = (property: Property) => {
-    const error = validatePropertyForLabel(property)
+    const error = validatePropertyForLabel(property);
     if (error) {
-      setValidationError(error)
-      setSelectedProperty(property)
-      return
+      setValidationError(error);
+      setSelectedProperty(property);
+      return;
     }
-    
-    setWizardProperty(property)
-    setShowWizard(true)
-  }
+
+    setWizardProperty(property);
+    setShowWizard(true);
+  };
 
   const handleWizardComplete = () => {
     toast({
       title: "Étiquette sauvegardée",
       description: `L'étiquette pour "${wizardProperty?.reference}" a été enregistrée avec succès.`,
-    })
-    fetchProperties()
-    setShowWizard(false)
-    setWizardProperty(null)
-  }
+    });
+    fetchProperties();
+    setShowWizard(false);
+    setWizardProperty(null);
+  };
 
   const handleDownloadExisting = (property: Property) => {
-    const labelPdfUrl = getDocumentUrl(property.documents, "LABEL_PDF")
+    const labelPdfUrl = getDocumentUrl(property.documents, "LABEL_PDF");
     if (labelPdfUrl) {
       // Open the PDF in a new tab
-      window.open(labelPdfUrl, "_blank")
+      window.open(labelPdfUrl, "_blank");
       toast({
         title: "PDF ouvert",
         description: `L'étiquette "${property.reference}" s'ouvre dans un nouvel onglet.`,
-      })
+      });
     } else {
       // Open wizard to regenerate
       toast({
         title: "PDF non disponible",
         description: "Veuillez régénérer l'étiquette pour obtenir le PDF.",
         variant: "destructive",
-      })
-      handleOpenWizard(property)
+      });
+      handleOpenWizard(property);
     }
-  }
+  };
 
-  const filteredProperties = properties
+  const filteredProperties = properties;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Étiquettes vitrine</h1>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Étiquettes vitrine
+          </h1>
           <p className="text-muted-foreground mt-1">
             Générez des étiquettes PDF pour vos annonces
           </p>
@@ -251,30 +271,31 @@ export default function LabelsPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select 
-              value={labelFilter} 
+            <Select
+              value={labelFilter}
               onValueChange={(v) => setLabelFilter(v as typeof labelFilter)}
             >
               <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
                 <SelectItem value="all">Toutes les annonces</SelectItem>
                 <SelectItem value="generated">Étiquettes générées</SelectItem>
                 <SelectItem value="not_generated">Sans étiquette</SelectItem>
-            </SelectContent>
-          </Select>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
 
       {/* Properties List */}
-        <Card className="shadow-card">
+      <Card className="shadow-card">
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-semibold">Annonces</CardTitle>
-              <CardDescription>
-            {filteredProperties.length} annonce(s) • Cliquez sur &quot;Générer&quot; pour créer une étiquette
-              </CardDescription>
+          <CardDescription>
+            {filteredProperties.length} annonce(s) • Cliquez sur
+            &quot;Générer&quot; pour créer une étiquette
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -289,16 +310,22 @@ export default function LabelsPage() {
           ) : (
             <div className="space-y-3">
               {filteredProperties.map((property) => {
-                const hasValidDPE = property.energy?.energyClass && property.energy?.energyValue
-                const hasValidGES = property.energy?.gesClass && property.energy?.gesValue
-                const canGenerate = hasValidDPE && hasValidGES
+                const hasValidDPE =
+                  property.energy?.energyClass && property.energy?.energyValue;
+                const hasValidGES =
+                  property.energy?.gesClass && property.energy?.gesValue;
+                const canGenerate = hasValidDPE && hasValidGES;
+                const hasLabelPdf = !!getDocumentUrl(
+                  property.documents,
+                  "LABEL_PDF",
+                );
 
-              return (
-                <div
-                  key={property.id}
+                return (
+                  <div
+                    key={property.id}
                     className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-muted-foreground/30 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
+                  >
+                    <div className="flex items-center gap-4">
                       {/* Thumbnail */}
                       <div className="h-16 w-16 rounded-md bg-muted overflow-hidden shrink-0">
                         {property.images[0] ? (
@@ -313,21 +340,27 @@ export default function LabelsPage() {
                             <ImageIcon className="h-6 w-6 text-muted-foreground" />
                           </div>
                         )}
-                    </div>
+                      </div>
 
                       {/* Info */}
-                    <div>
-                        <p className="font-medium text-foreground">{property.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                          {property.reference} • {property.location?.city ?? "N/A"} • {property.finance?.price?.toLocaleString("fr-FR") ?? "N/A"} €
-                      </p>
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {property.title}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {property.reference} •{" "}
+                          {property.location?.city ?? "N/A"} •{" "}
+                          {property.finance?.price?.toLocaleString("fr-FR") ??
+                            "N/A"}{" "}
+                          €
+                        </p>
                         <div className="flex items-center gap-2 mt-1">
                           {/* DPE/GES Status */}
-                    <Badge
-                      variant="outline"
+                          <Badge
+                            variant="outline"
                             className={`text-xs ${
-                              canGenerate 
-                          ? "bg-green-50 text-green-700 border-green-200"
+                              canGenerate
+                                ? "bg-green-50 text-green-700 border-green-200"
                                 : "bg-amber-50 text-amber-700 border-amber-200"
                             }`}
                           >
@@ -343,16 +376,16 @@ export default function LabelsPage() {
                               </>
                             )}
                           </Badge>
-                          
+
                           {/* Label Status */}
-                          {property.energy?.labelGenerated && (
-                            <Badge 
-                              variant="outline" 
+                          {hasLabelPdf && (
+                            <Badge
+                              variant="outline"
                               className="text-xs bg-blue-50 text-blue-700 border-blue-200"
                             >
                               <Tag className="h-3 w-3 mr-1" />
                               Étiquette générée
-                    </Badge>
+                            </Badge>
                           )}
                         </div>
                       </div>
@@ -360,37 +393,35 @@ export default function LabelsPage() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-9 w-9"
                         onClick={() => setPreviewProperty(property)}
                         title="Aperçu"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
 
-                      {property.energy?.labelGenerated ? (
+                      {hasLabelPdf ? (
                         <>
-                          {getDocumentUrl(property.documents, "LABEL_PDF") && (
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleDownloadExisting(property)}
-                              title="Voir le PDF"
+                            title="Voir le PDF"
                           >
-                              <ExternalLink className="h-4 w-4 mr-1" />
-                              Voir PDF
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            Voir PDF
                           </Button>
-                          )}
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleOpenWizard(property)}
-                            title="Recréer l'étiquette"
+                            title="Régénérer l'étiquette"
                           >
                             <RefreshCw className="h-4 w-4 mr-1" />
-                            Recréer
+                            Régénérer
                           </Button>
                         </>
                       ) : (
@@ -401,20 +432,23 @@ export default function LabelsPage() {
                           className="shadow-sm"
                         >
                           <Tag className="h-4 w-4 mr-1" />
-                          Générer
+                          Générer le PDF
                         </Button>
                       )}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                );
+              })}
             </div>
           )}
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
 
       {/* Preview Dialog */}
-      <Dialog open={!!previewProperty} onOpenChange={() => setPreviewProperty(null)}>
+      <Dialog
+        open={!!previewProperty}
+        onOpenChange={() => setPreviewProperty(null)}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Aperçu - {previewProperty?.reference}</DialogTitle>
@@ -425,26 +459,38 @@ export default function LabelsPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Prix :</span>{" "}
-                  <strong>{previewProperty.finance?.price?.toLocaleString("fr-FR") ?? "N/A"} €</strong>
+                  <strong>
+                    {previewProperty.finance?.price?.toLocaleString("fr-FR") ??
+                      "N/A"}{" "}
+                    €
+                  </strong>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Surface :</span>{" "}
-                  <strong>{previewProperty.characteristics?.surface ?? "N/A"} m²</strong>
+                  <strong>
+                    {previewProperty.characteristics?.surface ?? "N/A"} m²
+                  </strong>
                 </div>
                 <div>
                   <span className="text-muted-foreground">DPE :</span>{" "}
-                  <strong>{previewProperty.energy?.energyClass || "Non renseigné"}</strong>
-                  {previewProperty.energy?.energyValue && ` (${previewProperty.energy.energyValue} kWh/m²/an)`}
+                  <strong>
+                    {previewProperty.energy?.energyClass || "Non renseigné"}
+                  </strong>
+                  {previewProperty.energy?.energyValue &&
+                    ` (${previewProperty.energy.energyValue} kWh/m²/an)`}
                 </div>
                 <div>
                   <span className="text-muted-foreground">GES :</span>{" "}
-                  <strong>{previewProperty.energy?.gesClass || "Non renseigné"}</strong>
-                  {previewProperty.energy?.gesValue && ` (${previewProperty.energy.gesValue} kg CO₂/m²/an)`}
+                  <strong>
+                    {previewProperty.energy?.gesClass || "Non renseigné"}
+                  </strong>
+                  {previewProperty.energy?.gesValue &&
+                    ` (${previewProperty.energy.gesValue} kg CO₂/m²/an)`}
                 </div>
                 <div>
                   <span className="text-muted-foreground">Honoraires :</span>{" "}
                   <strong>
-                    {previewProperty.finance?.honorairesType === "acquereur" 
+                    {previewProperty.finance?.honorairesType === "acquereur"
                       ? `${previewProperty.finance?.honorairesPct}% charge acquéreur`
                       : "Charge vendeur"}
                   </strong>
@@ -469,7 +515,10 @@ export default function LabelsPage() {
       </Dialog>
 
       {/* Validation Error Dialog */}
-      <Dialog open={!!validationError} onOpenChange={() => setValidationError(null)}>
+      <Dialog
+        open={!!validationError}
+        onOpenChange={() => setValidationError(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-600">
@@ -481,7 +530,8 @@ export default function LabelsPage() {
             <p className="text-muted-foreground">{validationError}</p>
             <p className="mt-2 text-sm">
               Veuillez compléter les informations DPE et GES de l&apos;annonce{" "}
-              <strong>{selectedProperty?.reference}</strong> avant de générer l&apos;étiquette.
+              <strong>{selectedProperty?.reference}</strong> avant de générer
+              l&apos;étiquette.
             </p>
           </div>
           <DialogFooter>
@@ -498,13 +548,13 @@ export default function LabelsPage() {
           property={wizardProperty}
           isOpen={showWizard}
           onClose={() => {
-            setShowWizard(false)
-            setWizardProperty(null)
+            setShowWizard(false);
+            setWizardProperty(null);
           }}
           onComplete={handleWizardComplete}
           defaultColor={DEFAULT_COLOR}
         />
       )}
     </div>
-  )
+  );
 }
