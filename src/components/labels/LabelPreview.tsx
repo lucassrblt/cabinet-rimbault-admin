@@ -176,16 +176,37 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
             {/* Property Title */}
             <div
               style={{
-                fontSize: "18px",
-                fontWeight: 700,
-                color: primaryColor,
-                marginBottom: "10px",
-                textTransform: "uppercase",
-                letterSpacing: "0.3px",
-                lineHeight: 1.3,
+                display: "flex",
+                flexDirection: "column",
+                gap: "0px",
               }}
             >
-              {property.city} - {property.title}
+              <div
+                style={{
+                  fontSize: "18px",
+                  fontWeight: 700,
+                  color: "#000",
+                  marginBottom: "4px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.3px",
+                  lineHeight: 1.3,
+                }}
+              >
+                {property.city}
+              </div>
+              <div
+                style={{
+                  fontSize: "18px",
+                  fontWeight: 700,
+                  color: primaryColor,
+                  marginBottom: "10px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.3px",
+                  lineHeight: 1.3,
+                }}
+              >
+                {property.title}
+              </div>
             </div>
 
             {/* Main Photo */}
@@ -294,8 +315,8 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
                   alignItems: "center",
+                  gap: "10px",
                 }}
               >
                 <div
@@ -313,7 +334,7 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                       fontSize: "24px",
                       fontWeight: 700,
                       color: "#dc2626",
-                      marginLeft: "20px",
+                      marginLeft: "0px",
                     }}
                   >
                     Exclusivité !

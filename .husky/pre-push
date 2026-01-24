@@ -1,0 +1,2 @@
+echo "🔨 Running build to verify Vercel deployment will succeed..."
+npm run build
