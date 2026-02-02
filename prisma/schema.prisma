@@ -519,9 +519,10 @@ model PropertyCharacteristics {
   kitchenEquipee Boolean      @default(false)
 
   // Étages
-  floor       Int?
-  totalFloors Int?
-  levelsCount Int? @default(1)
+  floor                Int?
+  floorIsRezDeChaussee Boolean  @default(false)
+  totalFloors          Int?
+  levelsCount          Int?     @default(1)
 
   // Dimensions
   ceilingHeight Float?

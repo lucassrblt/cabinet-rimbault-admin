@@ -169,6 +169,7 @@ export function DetailsStep({ form }: DetailsStepProps) {
                 </FormItem>
               )}
             />
+            <div className="flex flex-col items-start space-y-2">
             <FormField
               control={form.control}
               name="floor"
@@ -192,6 +193,23 @@ export function DetailsStep({ form }: DetailsStepProps) {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="floorIsRezDeChaussee"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                  <FormControl>
+                    <CheckboxField
+                      label="Rez-de-chaussée"
+                      checked={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            </div>
             <FormField
               control={form.control}
               name="totalFloors"

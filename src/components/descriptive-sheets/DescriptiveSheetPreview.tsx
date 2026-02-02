@@ -38,6 +38,7 @@ interface PropertyCharacteristics {
   toilets?: number | null;
   toiletsSeparate?: boolean;
   floor?: number | null;
+  floorIsRezDeChaussee?: boolean;
   totalFloors?: number | null;
   levelsCount?: number | null;
   ceilingHeight?: number | null;
@@ -503,20 +504,22 @@ export const DescriptiveSheetPreview = forwardRef<
         });
       }
 
-      // Étage (pour appartements)
-      if (
-        property.characteristics?.floor !== null &&
-        property.characteristics?.floor !== undefined
-      ) {
-        const etageValue =
-          property.characteristics.floor === 0
-            ? "RDC"
-            : `${property.characteristics.floor}${property.characteristics.totalFloors ? `/${property.characteristics.totalFloors}` : ""}`;
-        items.push({
-          label: "Étage",
-          value: etageValue,
-        });
+      // Étage — toujours affiché ; "Rez-de-chaussée" si coché ou étage 0, sinon N/total
+      const floorIsRez = property.characteristics?.floorIsRezDeChaussee === true;
+      const floorNum = property.characteristics?.floor;
+      const totalFloors = property.characteristics?.totalFloors;
+      let etageValue: string;
+      if (floorIsRez || (floorNum !== null && floorNum !== undefined && floorNum === 0)) {
+        etageValue = "Rez-de-chaussée";
+      } else if (floorNum !== null && floorNum !== undefined) {
+        etageValue = `${floorNum}${totalFloors != null ? `/${totalFloors}` : ""}`;
+      } else {
+        etageValue = "—";
       }
+      items.push({
+        label: "Étage",
+        value: etageValue,
+      });
 
       // === ÉQUIPEMENTS ===
       // Chauffage
@@ -844,8 +847,11 @@ export const DescriptiveSheetPreview = forwardRef<
                       marginTop: "2px",
                     }}
                   >
-                    Honoraires de {property.finance.honorairesPct}% TTC à la
-                    charge de l&apos;acquéreur
+                    Honoraires de{" "}
+                    {property.finance.honorairesPct
+                      ?.toString()
+                      .replace(".", ",")}
+                    % TTC à la charge de l&apos;acquéreur
                   </div>
                 </>
               ) : (

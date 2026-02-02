@@ -102,6 +102,7 @@ export const propertyFormSchema = z.object({
     .optional()
     .nullable(),
   floor: z.coerce.number().int().optional().nullable(),
+  floorIsRezDeChaussee: z.boolean().default(false),
   totalFloors: z.coerce.number().int().optional().nullable(),
 
   // Équipements

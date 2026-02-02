@@ -1,92 +1,95 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useState } from "react"
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  MapPin, 
-  Bed, 
-  Bath, 
-  Maximize, 
-  Heart, 
+import * as React from "react";
+import { useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Bed,
+  Bath,
+  Maximize,
+  Heart,
   Share2,
   Home,
   ChevronDown,
-  Image as ImageIcon
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Card, CardContent } from "@/components/ui/card"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { PropertyEstimationBanner } from "@/components/PropertyEstimationBanner"
-import Map, { Marker, NavigationControl } from 'react-map-gl/mapbox'
-import 'mapbox-gl/dist/mapbox-gl.css'
+  Image as ImageIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PropertyEstimationBanner } from "@/components/PropertyEstimationBanner";
+import Map, { Marker, NavigationControl } from "react-map-gl/mapbox";
+import "mapbox-gl/dist/mapbox-gl.css";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface PropertyDocument {
-  id: string
-  name: string
-  url: string
-  type: string
+  id: string;
+  name: string;
+  url: string;
+  type: string;
 }
 
 interface PropertyData {
-  id: string
-  title: string
-  reference: string
-  price: number
-  description: string
+  id: string;
+  title: string;
+  reference: string;
+  price: number;
+  description: string;
   location: {
-    city: string
-    postalCode: string
-    address?: string
-    latitude?: number
-    longitude?: number
-  }
+    city: string;
+    postalCode: string;
+    address?: string;
+    latitude?: number;
+    longitude?: number;
+  };
   characteristics: {
-    surface: number
-    surfaceCarrez?: number
-    rooms: number
-    bedrooms: number
-    bathrooms: number
-    floor?: number
-    totalFloors?: number
-    yearBuilt?: number
-    condition?: string
-  }
+    surface: number;
+    surfaceCarrez?: number;
+    rooms: number;
+    bedrooms: number;
+    bathrooms: number;
+    floor?: number;
+    totalFloors?: number;
+    yearBuilt?: number;
+    condition?: string;
+  };
   energy: {
-    dpeClass?: string
-    dpeValue?: number
-    gesClass?: string
-    gesValue?: number
-  }
+    dpeClass?: string;
+    dpeValue?: number;
+    gesClass?: string;
+    gesValue?: number;
+  };
   copro?: {
-    lots?: number
-    charges?: number
-  }
-  images: string[]
-  documents?: PropertyDocument[]
-  isExclusive?: boolean
-  isNew?: boolean
+    lots?: number;
+    charges?: number;
+  };
+  images: string[];
+  documents?: PropertyDocument[];
+  isExclusive?: boolean;
+  isNew?: boolean;
 }
 
 // Helper pour extraire les URLs des documents
-function getDocumentUrl(documents: PropertyDocument[] | undefined, type: string): string | null {
-  if (!documents) return null
-  const doc = documents.find(d => d.type === type)
-  return doc?.url ?? null
+function getDocumentUrl(
+  documents: PropertyDocument[] | undefined,
+  type: string,
+): string | null {
+  if (!documents) return null;
+  const doc = documents.find((d) => d.type === type);
+  return doc?.url ?? null;
 }
 
 interface PropertyDetailPageProps {
-  property?: PropertyData
-  otherProperties?: PropertyData[]
-  className?: string
+  property?: PropertyData;
+  otherProperties?: PropertyData[];
+  className?: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -95,7 +98,8 @@ interface PropertyDetailPageProps {
 
 const sampleProperty: PropertyData = {
   id: "1",
-  title: "Appartement de plain-pied, en RDC d'une maison, à vendre à SEYSSEL (01), avec terrasse, à 40 mn d'Aix-les-Bains, 50 mn de Genève et 1H30 de Lyon.",
+  title:
+    "Appartement de plain-pied, en RDC d'une maison, à vendre à SEYSSEL (01), avec terrasse, à 40 mn d'Aix-les-Bains, 50 mn de Genève et 1H30 de Lyon.",
   reference: "340 938 225 778",
   price: 170000,
   description: `Appartement lumineux de plain-pied situé en rez-de-chaussée d'une maison, au sein d'une petite copropriété de seulement cinq lots.
@@ -120,26 +124,26 @@ Pour tout complément d'information et pour organiser une visite, n'hésitez pas
     city: "SEYSSEL",
     postalCode: "01420",
     latitude: 45.9587,
-    longitude: 5.8332
+    longitude: 5.8332,
   },
   characteristics: {
     surface: 66,
-    surfaceCarrez: 66.20,
+    surfaceCarrez: 66.2,
     rooms: 3,
     bedrooms: 2,
     bathrooms: 1,
     floor: 0,
-    totalFloors: 3
+    totalFloors: 3,
   },
   energy: {
     dpeClass: "D",
     dpeValue: 180,
     gesClass: "C",
-    gesValue: 25
+    gesValue: 25,
   },
   copro: {
     lots: 5,
-    charges: 0
+    charges: 0,
   },
   images: [
     "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&auto=format&fit=crop&q=80",
@@ -153,66 +157,86 @@ Pour tout complément d'information et pour organiser une visite, n'hésitez pas
     "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&auto=format&fit=crop&q=80",
     "https://images.unsplash.com/photo-1560449752-3fd4bdbe7df0?w=800&auto=format&fit=crop&q=80",
     "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=800&auto=format&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=800&auto=format&fit=crop&q=80"
+    "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=800&auto=format&fit=crop&q=80",
   ],
   isExclusive: true,
-  isNew: true
-}
+  isNew: true,
+};
 
 const sampleOtherProperties: PropertyData[] = [
   {
     id: "2",
-    title: "Appartement T3 de 67,31m² à vendre à SEYSSEL (01) avec terrasse et proche du Rhône. En train à 1 heure de Lyon et 45 mn de Genève",
+    title:
+      "Appartement T3 de 67,31m² à vendre à SEYSSEL (01) avec terrasse et proche du Rhône. En train à 1 heure de Lyon et 45 mn de Genève",
     reference: "REF-002",
     price: 223900,
     description: "",
     location: { city: "SEYSSEL", postalCode: "01420" },
     characteristics: { surface: 67, rooms: 3, bedrooms: 2, bathrooms: 1 },
     energy: { dpeClass: "B" },
-    images: ["https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&auto=format&fit=crop&q=80"]
+    images: [
+      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&auto=format&fit=crop&q=80",
+    ],
   },
   {
     id: "3",
-    title: "Appartement de 32,36 m² à vendre, 2 pièces à SEYSSEL (01) à 45 mns d'Annecy et de Genève",
+    title:
+      "Appartement de 32,36 m² à vendre, 2 pièces à SEYSSEL (01) à 45 mns d'Annecy et de Genève",
     reference: "REF-003",
     price: 119700,
     description: "",
     location: { city: "SEYSSEL", postalCode: "01420" },
     characteristics: { surface: 32, rooms: 2, bedrooms: 1, bathrooms: 1 },
     energy: { dpeClass: "C" },
-    images: ["https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&auto=format&fit=crop&q=80"]
+    images: [
+      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&auto=format&fit=crop&q=80",
+    ],
   },
   {
     id: "4",
-    title: "Appartement de 86,40 m² à vendre à SEYSSEL (01) avec terrasse, proche du Rhône, à 45 mns d'Annecy et de Genève",
+    title:
+      "Appartement de 86,40 m² à vendre à SEYSSEL (01) avec terrasse, proche du Rhône, à 45 mns d'Annecy et de Genève",
     reference: "REF-004",
     price: 287000,
     description: "",
     location: { city: "SEYSSEL", postalCode: "01420" },
     characteristics: { surface: 86, rooms: 4, bedrooms: 3, bathrooms: 1 },
     energy: { dpeClass: "B" },
-    images: ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&auto=format&fit=crop&q=80"]
-  }
-]
+    images: [
+      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&auto=format&fit=crop&q=80",
+    ],
+  },
+];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUBCOMPONENTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Image Carousel Component
-function ImageCarousel({ images, className }: { images: string[], className?: string }) {
-  const [currentIndex, setCurrentIndex] = useState(0)
+function ImageCarousel({
+  images,
+  className,
+}: {
+  images: string[];
+  className?: string;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   const goToPrevious = () => {
-    setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))
-  }
+    setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
 
   const goToNext = () => {
-    setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))
-  }
+    setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
 
   return (
-    <div className={cn("relative group rounded-2xl overflow-hidden bg-slate-100", className)}>
+    <div
+      className={cn(
+        "relative group rounded-2xl overflow-hidden bg-slate-100",
+        className,
+      )}
+    >
       {/* Main Image */}
       <div className="relative aspect-[4/3] w-full">
         <Image
@@ -221,11 +245,13 @@ function ImageCarousel({ images, className }: { images: string[], className?: st
           fill
           className="object-cover transition-opacity duration-300"
         />
-        
+
         {/* Photo count badge */}
         <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center gap-2 shadow-lg">
           <ImageIcon className="h-4 w-4 text-slate-600" />
-          <span className="text-sm font-medium text-slate-700">+ {images.length} photos</span>
+          <span className="text-sm font-medium text-slate-700">
+            + {images.length} photos
+          </span>
         </div>
 
         {/* Navigation arrows */}
@@ -252,31 +278,35 @@ function ImageCarousel({ images, className }: { images: string[], className?: st
               onClick={() => setCurrentIndex(index)}
               className={cn(
                 "w-2 h-2 rounded-full transition-all",
-                index === currentIndex ? "bg-white w-6" : "bg-white/60 hover:bg-white/80"
+                index === currentIndex
+                  ? "bg-white w-6"
+                  : "bg-white/60 hover:bg-white/80",
               )}
               aria-label={`Aller à l'image ${index + 1}`}
             />
           ))}
           {images.length > 7 && (
-            <span className="text-white text-xs ml-1">+{images.length - 7}</span>
+            <span className="text-white text-xs ml-1">
+              +{images.length - 7}
+            </span>
           )}
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 // Energy Label Component (DPE/GES)
-function EnergyLabel({ 
-  type, 
-  value, 
-  className 
-}: { 
-  type: "dpe" | "ges"
-  value?: string
-  className?: string 
+function EnergyLabel({
+  type,
+  value,
+  className,
+}: {
+  type: "dpe" | "ges";
+  value?: string;
+  className?: string;
 }) {
-  const classes = ["A", "B", "C", "D", "E", "F", "G"]
+  const classes = ["A", "B", "C", "D", "E", "F", "G"];
   const dpeColors: Record<string, string> = {
     A: "bg-[#319834]",
     B: "bg-[#33a357]",
@@ -284,8 +314,8 @@ function EnergyLabel({
     D: "bg-[#f0e60d]",
     E: "bg-[#f5b30b]",
     F: "bg-[#ef7e22]",
-    G: "bg-[#e42016]"
-  }
+    G: "bg-[#e42016]",
+  };
   const gesColors: Record<string, string> = {
     A: "bg-[#f2e9f9]",
     B: "bg-[#d9c1eb]",
@@ -293,12 +323,15 @@ function EnergyLabel({
     D: "bg-[#a974c8]",
     E: "bg-[#8f50b4]",
     F: "bg-[#6f2c91]",
-    G: "bg-[#4a0072]"
-  }
-  
-  const colors = type === "dpe" ? dpeColors : gesColors
-  const title = type === "dpe" ? "Consommation énergétique" : "Émissions de gaz à effet de serre"
-  const unit = type === "dpe" ? "kWh/m²/an" : "kgCO₂/m²/an"
+    G: "bg-[#4a0072]",
+  };
+
+  const colors = type === "dpe" ? dpeColors : gesColors;
+  const title =
+    type === "dpe"
+      ? "Consommation énergétique"
+      : "Émissions de gaz à effet de serre";
+  const unit = type === "dpe" ? "kWh/m²/an" : "kgCO₂/m²/an";
 
   return (
     <div className={cn("", className)}>
@@ -310,9 +343,16 @@ function EnergyLabel({
               className={cn(
                 "h-6 flex items-center justify-center text-xs font-bold text-white rounded-r-md transition-all",
                 colors[cls],
-                cls === value ? "px-4 min-w-[80px] ring-2 ring-slate-800 ring-offset-1" : "px-2 min-w-[40px] opacity-60"
+                cls === value
+                  ? "px-4 min-w-[80px] ring-2 ring-slate-800 ring-offset-1"
+                  : "px-2 min-w-[40px] opacity-60",
               )}
-              style={{ width: cls === value ? "auto" : `${(classes.indexOf(cls) + 2) * 12}px` }}
+              style={{
+                width:
+                  cls === value
+                    ? "auto"
+                    : `${(classes.indexOf(cls) + 2) * 12}px`,
+              }}
             >
               {cls}
             </div>
@@ -323,7 +363,7 @@ function EnergyLabel({
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 // Property Card for "Other Properties" section
@@ -336,7 +376,7 @@ function PropertyCard({ property }: { property: PropertyData }) {
           <span className="text-xs text-slate-600">Présenté par</span>
           <span className="text-xs font-semibold text-slate-800">Flora</span>
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-200 to-amber-400 overflow-hidden relative">
-            <Image 
+            <Image
               src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80"
               alt="Agent"
               fill
@@ -344,7 +384,7 @@ function PropertyCard({ property }: { property: PropertyData }) {
             />
           </div>
         </div>
-        
+
         <div className="aspect-[16/10] overflow-hidden relative">
           <Image
             src={property.images[0]}
@@ -380,7 +420,7 @@ function PropertyCard({ property }: { property: PropertyData }) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 // FAQ Wireframe Component
@@ -390,8 +430,8 @@ function FAQWireframe() {
     "Quels sont les frais de notaire estimés ?",
     "Puis-je visiter le bien ?",
     "Le bien est-il négociable ?",
-    "Quelles sont les charges de copropriété ?"
-  ]
+    "Quelles sont les charges de copropriété ?",
+  ];
 
   return (
     <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 bg-slate-50/50">
@@ -402,12 +442,14 @@ function FAQWireframe() {
         <h2 className="text-2xl font-bold text-slate-800">
           Foire aux questions
         </h2>
-        <p className="text-slate-500 mt-2">Cette section sera implémentée ultérieurement</p>
+        <p className="text-slate-500 mt-2">
+          Cette section sera implémentée ultérieurement
+        </p>
       </div>
 
       <div className="space-y-3 max-w-2xl mx-auto">
         {faqItems.map((item, index) => (
-          <div 
+          <div
             key={index}
             className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200"
           >
@@ -417,7 +459,7 @@ function FAQWireframe() {
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 // Footer Wireframe Component
@@ -429,7 +471,7 @@ function FooterWireframe() {
           WIREFRAME - FOOTER
         </span>
       </div>
-      
+
       <div className="container mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Logo & Description */}
@@ -447,7 +489,9 @@ function FooterWireframe() {
             <h4 className="font-semibold text-slate-300">Navigation</h4>
             <div className="space-y-2">
               {["Acheter", "Vendre", "Louer", "L'agence"].map((item) => (
-                <div key={item} className="text-slate-400 text-sm">{item}</div>
+                <div key={item} className="text-slate-400 text-sm">
+                  {item}
+                </div>
               ))}
             </div>
           </div>
@@ -456,9 +500,13 @@ function FooterWireframe() {
           <div className="space-y-4">
             <h4 className="font-semibold text-slate-300">Services</h4>
             <div className="space-y-2">
-              {["Estimation", "Gestion locative", "Syndic", "Conseil"].map((item) => (
-                <div key={item} className="text-slate-400 text-sm">{item}</div>
-              ))}
+              {["Estimation", "Gestion locative", "Syndic", "Conseil"].map(
+                (item) => (
+                  <div key={item} className="text-slate-400 text-sm">
+                    {item}
+                  </div>
+                ),
+              )}
             </div>
           </div>
 
@@ -486,42 +534,42 @@ function FooterWireframe() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 // Mapbox Interactive Map Component
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-function MapSection({ 
-  city, 
-  postalCode, 
-  latitude, 
+function MapSection({
+  city,
+  postalCode,
+  latitude,
   longitude,
-  title 
-}: { 
-  city: string
-  postalCode: string
-  latitude?: number
-  longitude?: number
-  title: string
+  title,
+}: {
+  city: string;
+  postalCode: string;
+  latitude?: number;
+  longitude?: number;
+  title: string;
 }) {
   // Default coordinates (center of France) if no coordinates provided
-  const defaultLat = 46.603354
-  const defaultLng = 1.888334
-  
-  const lat = latitude || defaultLat
-  const lng = longitude || defaultLng
-  const hasCoordinates = latitude && longitude
+  const defaultLat = 46.603354;
+  const defaultLng = 1.888334;
+
+  const lat = latitude || defaultLat;
+  const lng = longitude || defaultLng;
+  const hasCoordinates = latitude && longitude;
 
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold text-slate-800">
-        Localisation du bien : {title.split(',')[0]}
+        Localisation du bien : {title.split(",")[0]}
       </h2>
       <p className="text-slate-600 font-medium">
         {postalCode} {city}
       </p>
-      
+
       <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-card">
         <div className="aspect-[2/1] bg-gradient-to-br from-green-100 via-green-50 to-blue-50 relative">
           {MAPBOX_TOKEN ? (
@@ -531,7 +579,7 @@ function MapSection({
                 longitude: lng,
                 zoom: 11, // Zoom large pour voir la zone
               }}
-              style={{ width: '100%', height: '100%' }}
+              style={{ width: "100%", height: "100%" }}
               mapStyle="mapbox://styles/mapbox/streets-v12"
               mapboxAccessToken={MAPBOX_TOKEN}
               interactive={true}
@@ -542,7 +590,7 @@ function MapSection({
               touchZoomRotate={true}
             >
               <NavigationControl position="top-right" />
-              
+
               {hasCoordinates && (
                 <Marker latitude={lat} longitude={lng} anchor="bottom">
                   <div className="relative animate-bounce">
@@ -558,7 +606,7 @@ function MapSection({
             // Fallback when no Mapbox token is configured
             <>
               <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&auto=format&fit=crop&q=60')] bg-cover bg-center opacity-30" />
-              
+
               {/* Map pin */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full">
                 <div className="relative">
@@ -581,7 +629,7 @@ function MapSection({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -591,21 +639,32 @@ function MapSection({
 export function PropertyDetailPage({
   property = sampleProperty,
   otherProperties = sampleOtherProperties,
-  className
+  className,
 }: PropertyDetailPageProps) {
   const formatPrice = (price: number) => {
-    return price.toLocaleString("fr-FR")
-  }
+    return price.toLocaleString("fr-FR");
+  };
 
   const generalCharacteristics = [
     { label: "Référence", value: property.reference },
     { label: "Nb chambre(s)", value: property.characteristics.bedrooms },
     { label: "Nb de pièce(s)", value: property.characteristics.rooms },
-    { label: "Surface habitable", value: `${property.characteristics.surface} m²` },
-    { label: "Surface carrez", value: property.characteristics.surfaceCarrez ? `${property.characteristics.surfaceCarrez.toFixed(2).replace('.', ',')} m²` : "-" },
+    {
+      label: "Surface habitable",
+      value: `${property.characteristics.surface} m²`,
+    },
+    {
+      label: "Surface carrez",
+      value: property.characteristics.surfaceCarrez
+        ? `${property.characteristics.surfaceCarrez.toFixed(2).replace(".", ",")} m²`
+        : "-",
+    },
     { label: "Salle de bain / eau", value: property.characteristics.bathrooms },
-    { label: "Nb d'étages", value: property.characteristics.totalFloors || "-" },
-  ]
+    {
+      label: "Nb d'étages",
+      value: property.characteristics.totalFloors || "-",
+    },
+  ];
 
   return (
     <div className={cn("min-h-screen bg-slate-50", className)}>
@@ -615,15 +674,25 @@ export function PropertyDetailPage({
       <div className="bg-white border-b border-slate-100">
         <div className="container mx-auto px-4 py-3">
           <nav className="flex items-center gap-2 text-sm text-slate-500">
-            <a href="#" className="hover:text-primary transition-colors">Accueil</a>
+            <a href="#" className="hover:text-primary transition-colors">
+              Accueil
+            </a>
             <ChevronRight className="h-4 w-4" />
-            <a href="#" className="hover:text-primary transition-colors">Vente</a>
+            <a href="#" className="hover:text-primary transition-colors">
+              Vente
+            </a>
             <ChevronRight className="h-4 w-4" />
-            <a href="#" className="hover:text-primary transition-colors">Appartement</a>
+            <a href="#" className="hover:text-primary transition-colors">
+              Appartement
+            </a>
             <ChevronRight className="h-4 w-4" />
-            <a href="#" className="hover:text-primary transition-colors">Ain (01)</a>
+            <a href="#" className="hover:text-primary transition-colors">
+              Ain (01)
+            </a>
             <ChevronRight className="h-4 w-4" />
-            <span className="text-slate-400 truncate max-w-xs">{property.location.city}</span>
+            <span className="text-slate-400 truncate max-w-xs">
+              {property.location.city}
+            </span>
           </nav>
         </div>
       </div>
@@ -637,7 +706,7 @@ export function PropertyDetailPage({
             {/* Left - Image Carousel */}
             <div className="relative">
               <ImageCarousel images={property.images} />
-              
+
               {/* Badges */}
               <div className="absolute bottom-6 left-6 flex gap-2">
                 {property.isExclusive && (
@@ -657,10 +726,18 @@ export function PropertyDetailPage({
             <div className="flex flex-col">
               {/* Action buttons */}
               <div className="flex justify-end gap-3 mb-6">
-                <Button variant="ghost" size="icon" className="rounded-full w-11 h-11 border border-slate-200">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full w-11 h-11 border border-slate-200"
+                >
                   <Heart className="h-5 w-5 text-slate-500" />
                 </Button>
-                <Button variant="ghost" size="icon" className="rounded-full w-11 h-11 border border-slate-200">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full w-11 h-11 border border-slate-200"
+                >
                   <Share2 className="h-5 w-5 text-slate-500" />
                 </Button>
               </div>
@@ -685,8 +762,12 @@ export function PropertyDetailPage({
                     <Bath className="h-6 w-6 text-slate-500" />
                   </div>
                   <div>
-                    <div className="text-xs text-slate-500 uppercase tracking-wide">Salles de bain</div>
-                    <div className="text-xl font-bold text-slate-800">{property.characteristics.bathrooms}</div>
+                    <div className="text-xs text-slate-500 uppercase tracking-wide">
+                      Salles de bain
+                    </div>
+                    <div className="text-xl font-bold text-slate-800">
+                      {property.characteristics.bathrooms}
+                    </div>
                   </div>
                 </div>
 
@@ -695,8 +776,12 @@ export function PropertyDetailPage({
                     <Maximize className="h-6 w-6 text-slate-500" />
                   </div>
                   <div>
-                    <div className="text-xs text-slate-500 uppercase tracking-wide">Superficie</div>
-                    <div className="text-xl font-bold text-slate-800">{property.characteristics.surface} m²</div>
+                    <div className="text-xs text-slate-500 uppercase tracking-wide">
+                      Superficie
+                    </div>
+                    <div className="text-xl font-bold text-slate-800">
+                      {property.characteristics.surface} m²
+                    </div>
                   </div>
                 </div>
 
@@ -705,8 +790,12 @@ export function PropertyDetailPage({
                     <Bed className="h-6 w-6 text-slate-500" />
                   </div>
                   <div>
-                    <div className="text-xs text-slate-500 uppercase tracking-wide">Chambres</div>
-                    <div className="text-xl font-bold text-slate-800">{property.characteristics.bedrooms}</div>
+                    <div className="text-xs text-slate-500 uppercase tracking-wide">
+                      Chambres
+                    </div>
+                    <div className="text-xl font-bold text-slate-800">
+                      {property.characteristics.bedrooms}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -728,16 +817,17 @@ export function PropertyDetailPage({
       <section className="bg-white border-t border-slate-100">
         <div className="container mx-auto px-4 py-12">
           <h2 className="text-2xl font-bold text-slate-800 mb-6">
-            Présentation du bien : Appartement {property.characteristics.rooms} pièces à vendre à {property.location.city}
+            Présentation du bien : Appartement {property.characteristics.rooms}{" "}
+            pièces à vendre à {property.location.city}
           </h2>
-          
+
           <div className="prose prose-slate max-w-none">
-            {property.description.split('\n\n').map((paragraph, index) => (
+            {property.description.split("\n\n").map((paragraph, index) => (
               <p key={index} className="text-slate-600 leading-relaxed mb-4">
-                {paragraph.split('\n').map((line, lineIndex) => (
+                {paragraph.split("\n").map((line, lineIndex) => (
                   <React.Fragment key={lineIndex}>
                     {line}
-                    {lineIndex < paragraph.split('\n').length - 1 && <br />}
+                    {lineIndex < paragraph.split("\n").length - 1 && <br />}
                   </React.Fragment>
                 ))}
               </p>
@@ -748,13 +838,17 @@ export function PropertyDetailPage({
           {property.copro && (
             <div className="mt-8 pt-6 border-t border-slate-200">
               <p className="text-slate-600 text-sm">
-                <span className="text-[#1e4a8a]">●</span>{" "}
-                Nombre de lots de la copropriété : {property.copro.lots}, 
-                Montant moyen annuel de la quote-part de charges (budget prévisionnel) : {property.copro.charges}€ soit {Math.round((property.copro.charges || 0) / 12)}€ par mois. 
-                Les honoraires sont à la charge du vendeur.
+                <span className="text-[#1e4a8a]">●</span> Nombre de lots de la
+                copropriété : {property.copro.lots}, Montant moyen annuel de la
+                quote-part de charges (budget prévisionnel) :{" "}
+                {property.copro.charges}€ soit{" "}
+                {Math.round((property.copro.charges || 0) / 12)}€ par mois. Les
+                honoraires sont à la charge du vendeur.
               </p>
               <p className="text-slate-500 text-sm mt-2">
-                Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : www.georisques.gouv.fr.
+                Les informations sur les risques auxquels ce bien est exposé
+                sont disponibles sur le site Géorisques :
+                www.georisques.gouv.fr.
               </p>
             </div>
           )}
@@ -787,13 +881,13 @@ export function PropertyDetailPage({
 
           <Tabs defaultValue="general" className="w-full">
             <TabsList className="bg-transparent border-b border-slate-200 rounded-none w-full justify-start h-auto p-0 mb-8">
-              <TabsTrigger 
+              <TabsTrigger
                 value="general"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#1e4a8a] data-[state=active]:bg-transparent data-[state=active]:text-[#1e4a8a] data-[state=active]:shadow-none px-6 py-3 font-semibold"
               >
                 Générales
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="diagnostics"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#1e4a8a] data-[state=active]:bg-transparent data-[state=active]:text-[#1e4a8a] data-[state=active]:shadow-none px-6 py-3 font-semibold"
               >
@@ -804,14 +898,16 @@ export function PropertyDetailPage({
             <TabsContent value="general" className="mt-0">
               <div className="space-y-0">
                 {generalCharacteristics.map((item, index) => (
-                  <div 
+                  <div
                     key={item.label}
                     className={cn(
                       "flex justify-between items-center py-4 px-6",
-                      index % 2 === 0 ? "bg-slate-50" : "bg-white"
+                      index % 2 === 0 ? "bg-slate-50" : "bg-white",
                     )}
                   >
-                    <span className="font-semibold text-slate-700">{item.label}</span>
+                    <span className="font-semibold text-slate-700">
+                      {item.label}
+                    </span>
                     <span className="text-slate-600">{item.value}</span>
                   </div>
                 ))}
@@ -820,15 +916,20 @@ export function PropertyDetailPage({
 
             <TabsContent value="diagnostics" className="mt-0">
               {/* Images générées depuis les documents */}
-              {(getDocumentUrl(property.documents, "DPE_IMAGE") || getDocumentUrl(property.documents, "GES_IMAGE")) ? (
+              {getDocumentUrl(property.documents, "DPE_IMAGE") ||
+              getDocumentUrl(property.documents, "GES_IMAGE") ? (
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {getDocumentUrl(property.documents, "DPE_IMAGE") && (
                       <div className="space-y-3">
-                        <h4 className="text-sm font-semibold text-slate-700">Diagnostic de Performance Énergétique (DPE)</h4>
+                        <h4 className="text-sm font-semibold text-slate-700">
+                          Diagnostic de Performance Énergétique (DPE)
+                        </h4>
                         <div className="relative aspect-[3/4] bg-slate-50 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
                           <Image
-                            src={getDocumentUrl(property.documents, "DPE_IMAGE")!}
+                            src={
+                              getDocumentUrl(property.documents, "DPE_IMAGE")!
+                            }
                             alt="Étiquette DPE"
                             fill
                             className="object-contain"
@@ -836,17 +937,22 @@ export function PropertyDetailPage({
                         </div>
                         {property.energy.dpeValue && (
                           <p className="text-sm text-slate-600 text-center">
-                            <strong>{property.energy.dpeValue}</strong> kWh/m²/an
+                            <strong>{property.energy.dpeValue}</strong>{" "}
+                            kWh/m²/an
                           </p>
                         )}
                       </div>
                     )}
                     {getDocumentUrl(property.documents, "GES_IMAGE") && (
                       <div className="space-y-3">
-                        <h4 className="text-sm font-semibold text-slate-700">Émissions de Gaz à Effet de Serre (GES)</h4>
+                        <h4 className="text-sm font-semibold text-slate-700">
+                          Émissions de Gaz à Effet de Serre (GES)
+                        </h4>
                         <div className="relative aspect-[3/4] bg-slate-50 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
                           <Image
-                            src={getDocumentUrl(property.documents, "GES_IMAGE")!}
+                            src={
+                              getDocumentUrl(property.documents, "GES_IMAGE")!
+                            }
                             alt="Étiquette GES"
                             fill
                             className="object-contain"
@@ -854,7 +960,8 @@ export function PropertyDetailPage({
                         </div>
                         {property.energy.gesValue && (
                           <p className="text-sm text-slate-600 text-center">
-                            <strong>{property.energy.gesValue}</strong> kgCO₂/m²/an
+                            <strong>{property.energy.gesValue}</strong>{" "}
+                            kgCO₂/m²/an
                           </p>
                         )}
                       </div>
@@ -868,15 +975,19 @@ export function PropertyDetailPage({
                   <EnergyLabel type="ges" value={property.energy.gesClass} />
                 </div>
               )}
-              
-              {property.energy.dpeValue && property.energy.gesValue && !getDocumentUrl(property.documents, "DPE_IMAGE") && !getDocumentUrl(property.documents, "GES_IMAGE") && (
-                <div className="mt-6 p-4 bg-slate-50 rounded-xl">
-                  <p className="text-sm text-slate-600">
-                    <strong>DPE :</strong> {property.energy.dpeValue} kWh/m²/an • 
-                    <strong className="ml-4">GES :</strong> {property.energy.gesValue} kgCO₂/m²/an
-                  </p>
-                </div>
-              )}
+
+              {property.energy.dpeValue &&
+                property.energy.gesValue &&
+                !getDocumentUrl(property.documents, "DPE_IMAGE") &&
+                !getDocumentUrl(property.documents, "GES_IMAGE") && (
+                  <div className="mt-6 p-4 bg-slate-50 rounded-xl">
+                    <p className="text-sm text-slate-600">
+                      <strong>DPE :</strong> {property.energy.dpeValue}{" "}
+                      kWh/m²/an •<strong className="ml-4">GES :</strong>{" "}
+                      {property.energy.gesValue} kgCO₂/m²/an
+                    </p>
+                  </div>
+                )}
             </TabsContent>
           </Tabs>
         </div>
@@ -913,8 +1024,10 @@ export function PropertyDetailPage({
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       <section className="bg-slate-50 border-t border-slate-100">
         <div className="container mx-auto px-4 py-12">
-          <PropertyEstimationBanner 
-            onEstimate={(address) => console.log("Estimation requested for:", address)}
+          <PropertyEstimationBanner
+            onEstimate={(address) =>
+              console.log("Estimation requested for:", address)
+            }
           />
         </div>
       </section>
@@ -924,8 +1037,7 @@ export function PropertyDetailPage({
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       <FooterWireframe />
     </div>
-  )
+  );
 }
 
-export default PropertyDetailPage
-
+export default PropertyDetailPage;

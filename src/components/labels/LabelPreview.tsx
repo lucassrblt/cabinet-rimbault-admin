@@ -360,8 +360,9 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                       marginTop: "2px",
                     }}
                   >
-                    Honoraires de {property.honorairesPct}% TTC à la charge de
-                    l&apos;acquéreur
+                    Honoraires de{" "}
+                    {property.honorairesPct?.toString().replace(".", ",")}% TTC
+                    à la charge de l&apos;acquéreur
                   </div>
                 </>
               ) : (

@@ -96,6 +96,7 @@ export interface PropertyApiData {
     showerRooms?: number | null;
     toilets?: number | null;
     floor?: number | null;
+    floorIsRezDeChaussee?: boolean;
     totalFloors?: number | null;
     yearBuilt?: number | null;
     renovatedYear?: number | null;
