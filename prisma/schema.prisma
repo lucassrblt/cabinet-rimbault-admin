@@ -355,6 +355,46 @@ enum EvaluationStatus {
   ARCHIVEE
 }
 
+// Qui supporte les honoraires (source : contrat API §2.5)
+enum HonorairesCharge {
+  ACQUEREUR
+  VENDEUR
+  PARTAGE
+}
+
+// Sujet d'un lead entrant (source : contrat API §3.1)
+enum LeadSubject {
+  BIEN_SALE
+  BIEN_RENT
+  ESTIMATION
+  APPOINTMENT
+  OTHER
+}
+
+// Profil du lead
+enum LeadProfile {
+  BUYER
+  INVESTOR
+  CURIOUS
+  TENANT
+}
+
+// Situation de financement du lead
+enum LeadFinancing {
+  APPROVED
+  IN_PROGRESS
+  TO_STUDY
+  CASH
+}
+
+// Statut interne d'un lead
+enum LeadStatus {
+  NOUVEAU
+  EN_COURS
+  TRAITE
+  ARCHIVE
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MODÈLE PRINCIPAL - PROPERTY
 // Contient les informations de base et les références vers les sous-tables
@@ -436,9 +476,10 @@ model PropertyFinance {
   chargesIncluses Boolean @default(false)
 
   // Honoraires
-  honoraires    Float?
-  honorairesType String?
-  honorairesPct Float?
+  honoraires       Float?
+  honorairesType   String?            // Historique — libellé libre (ex. "CHARGE_ACQUEREUR"). Conservé pour rétro-compat.
+  honorairesCharge HonorairesCharge?  // Nouveau — typage strict de la charge (cf. contrat API §5.6).
+  honorairesPct    Float?
 
   // Location
   depot           Float?
@@ -676,15 +717,16 @@ model PropertyEnergy {
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   // DPE - Données (les images sont dans PropertyDocument avec type DPE_IMAGE/GES_IMAGE)
-  energyClass         EnergyClass?
-  energyValue         Int?
-  gesClass            EnergyClass?
-  gesValue            Int?
-  dpeDate             DateTime?
-  dpeEstimation       Boolean      @default(false)
-  annualEnergyCost    Float?
-  annualEnergyCostMin Float?
-  annualEnergyCostMax Float?
+  energyClass            EnergyClass?
+  energyValue            Int?
+  gesClass               EnergyClass?
+  gesValue               Int?
+  dpeDate                DateTime?
+  dateReferenceEnergie   DateTime?    // Date de référence des prix de l'énergie (arrêté 2021 — distinct de `dpeDate`)
+  dpeEstimation          Boolean      @default(false)
+  annualEnergyCost       Float?
+  annualEnergyCostMin    Float?
+  annualEnergyCostMax    Float?
 
   // Étiquettes vitrine - Métadonnées (le PDF est dans PropertyDocument avec type LABEL_PDF)
   labelGenerated   Boolean   @default(false)
@@ -875,6 +917,16 @@ model Evaluation {
   email     String
   phone     String?
 
+  // Phase C — champs additifs optionnels (contrat API §5.3)
+  condition PropertyCondition?          // État général déclaré (enum FR partagé avec Property)
+  timeframe String?                     // Délai envisagé (libre — ex. "3_MOIS", "6_MOIS")
+  intent    String?                     // Intention (libre — ex. "SELL", "RENT_OUT", "EXPLORATION") — parallèle à `situation`
+  message   String?          @db.Text   // Message libre du demandeur
+  rgpd      Boolean?                    // Consentement RGPD. null = non envoyé (ancien client), true/false = envoyé.
+  source    String?                     // Origine (ex. "vitrine")
+  userAgent String?
+  referer   String?
+
   // Métadonnées
   status    EvaluationStatus @default(NOUVELLE)
   notes     String?          @db.Text // Notes internes de l'agent
@@ -885,4 +937,49 @@ model Evaluation {
   @@index([createdAt])
   @@index([email])
   @@index([postalCode])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEADS — FORMULAIRES DE CONTACT PUBLICS
+// Source de vérité : contrat API §3.1 (POST /api/public/contact)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Lead {
+  id String @id @default(cuid())
+
+  // Contexte du lead
+  subject           LeadSubject
+  propertyReference String?               // Renseigné si contact depuis /bien/[ref]
+  profile           LeadProfile?
+  financing         LeadFinancing?
+  visitAvailability String[]              @default([])
+
+  // Coordonnées
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+  message   String   @db.Text
+
+  // Consentement
+  rgpd Boolean @default(false)
+
+  // Attribution / debug
+  source    String?
+  page      String?
+  userAgent String?
+  referer   String?
+
+  // Workflow interne
+  status LeadStatus @default(NOUVEAU)
+  notes  String?    @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([email])
+  @@index([subject])
+  @@index([propertyReference])
 }

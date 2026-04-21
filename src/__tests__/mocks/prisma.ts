@@ -70,6 +70,13 @@ export const mockPrismaClient = {
     update: vi.fn(),
     delete: vi.fn(),
   },
+  lead: {
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
   agencySettings: {
     findUnique: vi.fn(),
     create: vi.fn(),
