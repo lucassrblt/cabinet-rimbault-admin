@@ -97,6 +97,15 @@ Après le seed, connectez-vous à l'admin :
 | `npm run db:seed` | Exécute le script de seed |
 | `npm run db:studio` | Ouvre Prisma Studio |
 | `npm run db:reset` | Reset la DB et re-seed |
+| `npm run test` | Lance les tests en mode watch |
+| `npm run test:run` | Lance la suite de tests d'intégration une seule fois (utilisé par `pre-push` et la CI) |
+| `npm run test:coverage` | Lance les tests avec le rapport de couverture |
+
+## Tests
+
+La suite couvre tous les endpoints API (admin + publics) au niveau route-handler avec Prisma/Supabase/NextAuth mockés — voir `src/__tests__/`. La commande `npm run test:run` est exécutée automatiquement :
+- **en local** avant chaque `git push` via `.husky/pre-push` (avant le `npm run build`),
+- **en CI** via `.github/workflows/ci.yml` sur `push` et `pull_request`.
 
 ## Structure du projet
 

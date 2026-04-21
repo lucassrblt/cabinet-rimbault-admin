@@ -1,2 +1,5 @@
+echo "🧪 Running integration tests..."
+npm run test:run
+
 echo "🔨 Running build to verify Vercel deployment will succeed..."
 npm run build
