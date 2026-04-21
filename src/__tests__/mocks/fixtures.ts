@@ -309,6 +309,103 @@ export const mockFullProperty = {
   },
 }
 
+// Evaluation fixture
+export const mockEvaluation = {
+  id: 'eval-123',
+  propertyType: 'APPARTEMENT',
+  postalCode: '75001',
+  address: '10 Rue Example',
+  surface: 50,
+  levels: null,
+  rooms: 2,
+  bedrooms: 1,
+  bathrooms: 1,
+  constructionYear: 1970,
+  renovations: null,
+  hasGarage: false,
+  hasPool: false,
+  hasGarden: false,
+  hasBalcony: true,
+  hasTerrace: false,
+  situation: 'VENTE',
+  firstName: 'Jean',
+  lastName: 'Dupont',
+  email: 'jean.dupont@example.com',
+  phone: '0601020304',
+  status: 'NOUVELLE',
+  notes: null,
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
+}
+
+export const mockCreateEvaluationBody = {
+  propertyType: 'APPARTEMENT',
+  postalCode: '75001',
+  firstName: 'Jean',
+  lastName: 'Dupont',
+  email: 'jean.dupont@example.com',
+  situation: 'vente',
+  surface: 50,
+  rooms: 2,
+  bedrooms: 1,
+  bathrooms: 1,
+  hasBalcony: true,
+}
+
+// Agency settings fixture
+export const mockAgencySettings = {
+  id: 'default',
+  name: 'Cabinet Rimbault',
+  address: '1 rue de la Paix',
+  city: 'Paris',
+  postalCode: '75001',
+  phone: '0102030405',
+  email: 'contact@cabinet-rimbault.fr',
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
+}
+
+// User fixture
+export const mockUser = {
+  id: 'user-456',
+  email: 'admin@example.com',
+  name: 'Admin',
+  password: 'hashed-password',
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
+}
+
+// PropertyDocument fixture
+export const mockPropertyDocument = {
+  id: 'doc-1',
+  propertyId: 'prop-123',
+  type: 'DESCRIPTIVE_SHEET_PDF',
+  url: 'https://test-bucket.supabase.co/doc.pdf',
+  name: 'REF-001_fiche_descriptive.pdf',
+  size: 102400,
+  mimeType: 'application/pdf',
+  description: 'Fiche descriptive du bien',
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
+}
+
+// Public-facing property: fullProperty without sensitive fields (internalNotes, userId, user)
+export const mockPublicProperty = (() => {
+  const publicProp: Record<string, unknown> = {
+    ...mockPropertyBase,
+    finance: mockPropertyFinance,
+    location: mockPropertyLocation,
+    characteristics: mockPropertyCharacteristics,
+    amenities: mockPropertyAmenities,
+    energy: mockPropertyEnergy,
+    copro: mockPropertyCopro,
+    images: mockPropertyImages,
+  }
+  delete publicProp.internalNotes
+  delete publicProp.userId
+  return publicProp
+})()
+
 // Create property request body
 export const mockCreatePropertyBody = {
   title: 'Nouvel Appartement',

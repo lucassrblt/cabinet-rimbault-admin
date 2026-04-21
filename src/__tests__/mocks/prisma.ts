@@ -8,6 +8,7 @@ export const mockPrismaClient = {
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    count: vi.fn(),
   },
   propertyFinance: {
     create: vi.fn(),
@@ -36,6 +37,51 @@ export const mockPrismaClient = {
   },
   propertyImage: {
     findMany: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn(),
+    delete: vi.fn(),
+  },
+  propertyDocument: {
+    findMany: vi.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+  },
+  propertyRoom: {
+    findMany: vi.fn(),
+    create: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+  },
+  propertyProximity: {
+    findMany: vi.fn(),
+    create: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+  },
+  evaluation: {
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+  agencySettings: {
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    upsert: vi.fn(),
+  },
+  user: {
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
   },
   $transaction: vi.fn((callback) => callback(mockPrismaClient)),
 }
@@ -59,4 +105,3 @@ export function resetPrismaMocks() {
   // Reset $transaction to default behavior
   mockPrismaClient.$transaction.mockImplementation((callback) => callback(mockPrismaClient))
 }
-
