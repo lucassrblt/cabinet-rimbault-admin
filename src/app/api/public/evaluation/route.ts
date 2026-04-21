@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
+import { PropertyCondition } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { withPublicApiAuth } from "@/lib/api-public-auth"
+
+const PROPERTY_CONDITION_VALUES = Object.values(PropertyCondition) as string[]
 
 // POST /api/public/evaluation - Créer une nouvelle demande d'estimation
 // Protégé par X-API-Key
@@ -38,6 +41,14 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      // Validation du champ `condition` (enum PropertyCondition, optionnel)
+      if (body.condition != null && !PROPERTY_CONDITION_VALUES.includes(body.condition)) {
+        return NextResponse.json(
+          { success: false, error: "La valeur de `condition` est invalide" },
+          { status: 400 }
+        )
+      }
+
       // Mapper la situation
       let situation: "ACHAT" | "VENTE" | "RENSEIGNEMENT" = "RENSEIGNEMENT"
       if (body.situation) {
@@ -71,12 +82,21 @@ export async function POST(request: NextRequest) {
           lastName: body.lastName,
           email: body.email,
           phone: body.phone || null,
+          // Phase C — champs additifs optionnels (contrat API §5.3)
+          condition: body.condition ?? null,
+          timeframe: body.timeframe ?? null,
+          intent: body.intent ?? null,
+          message: body.message ?? null,
+          rgpd: typeof body.rgpd === "boolean" ? body.rgpd : null,
+          source: body.source ?? null,
+          userAgent: body.userAgent ?? null,
+          referer: body.referer ?? null,
           status: "NOUVELLE",
         },
       })
 
       console.log("Public evaluation created successfully:", evaluation.id)
-      
+
       return NextResponse.json({
         success: true,
         message: "Votre demande d'estimation a été enregistrée avec succès",
@@ -88,7 +108,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error("Error creating public evaluation:", error)
       return NextResponse.json(
-        { 
+        {
           success: false,
           error: "Erreur lors de la création de la demande d'estimation",
           details: process.env.NODE_ENV === "development" ? (error instanceof Error ? error.message : String(error)) : undefined
@@ -98,4 +118,3 @@ export async function POST(request: NextRequest) {
     }
   })
 }
-
