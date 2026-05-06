@@ -1,37 +1,58 @@
 # Cabinet Rimbault - Agence Immobilière
 
-Application web pour la gestion d'une agence immobilière avec interface d'administration.
+Application web pour la gestion d'une agence immobilière avec interface d'administration et API publique pour le site vitrine.
 
 ## Fonctionnalités
 
 ### Admin
-- ✅ Authentification sécurisée (NextAuth)
-- ✅ Tableau de bord avec statistiques
-- ✅ Gestion des annonces immobilières (CRUD)
-- ✅ Génération d'étiquettes vitrine (PDF)
-- ✅ Génération automatique des étiquettes DPE/GES (via API externe + Supabase Storage)
 
-### Site vitrine (à venir)
-- Liste des biens disponibles
-- Fiche détaillée par bien
-- Formulaire de contact
-- Page d'accueil
+- ✅ Authentification sécurisée (NextAuth, JWT)
+- ✅ Tableau de bord avec statistiques (annonces, leads, estimations)
+- ✅ Gestion des annonces immobilières (CRUD complet)
+- ✅ Gestion des leads / demandes de contact (liste, détail, statut, notes)
+- ✅ Gestion des demandes d'estimation (liste, détail, statut, notes)
+- ✅ Notifications dynamiques (badge compteur dans le header)
+- ✅ Dashboard enrichi : stats leads/estimations + section "Dernières demandes"
+- ✅ Génération d'étiquettes vitrine (PDF)
+- ✅ Génération automatique des étiquettes DPE/GES (SVG → image → Supabase Storage)
+- ✅ Fiches descriptives (PDF)
+- ✅ Paramètres agence (singleton `AgencySettings`)
+
+### API publique (pour le site vitrine)
+
+- ✅ `GET /api/public/properties` — liste des biens publiés (filtres, pagination)
+- ✅ `GET /api/public/properties/[id]` — détail d'un bien (sans champs sensibles)
+- ✅ `POST /api/public/contact` — formulaire de contact (création Lead + email de confirmation)
+- ✅ `POST /api/public/evaluation` — demande d'estimation (création Evaluation + email de confirmation)
+- ✅ `GET /api/properties/recent` — biens récents (public, sans API key)
+
+### Emails transactionnels (Resend)
+
+- ✅ Email de confirmation automatique après une demande de contact
+- ✅ Email de confirmation automatique après une demande d'estimation
+- ✅ Envoi fire-and-forget (ne bloque pas la réponse API)
+- ✅ Templates HTML professionnels avec coordonnées agence et mentions RGPD
 
 ## Technologies
 
-- **Framework**: Next.js 15 (App Router) + React 19
-- **Styling**: Tailwind CSS + shadcn/ui
-- **Base de données**: PostgreSQL (via Docker sur port 5436)
-- **ORM**: Prisma
-- **Auth**: NextAuth.js
-- **Formulaires**: React Hook Form + Zod
+- **Framework** : Next.js 15 (App Router) + React 19
+- **Styling** : Tailwind CSS + shadcn/ui (new-york style)
+- **Base de données** : PostgreSQL (via Docker, port 5436)
+- **ORM** : Prisma
+- **Auth** : NextAuth.js (JWT + credentials)
+- **Formulaires** : React Hook Form + Zod
+- **Emails** : Resend (SDK TypeScript)
+- **Stockage fichiers** : Supabase Storage
+- **Tests** : Vitest + jsdom
+- **CI** : GitHub Actions (lint → test → build)
 
 ## Installation
 
 ### Prérequis
+
 - Node.js 18+
 - Docker & Docker Compose
-- npm ou yarn
+- npm
 
 ### 1. Cloner et installer les dépendances
 
@@ -47,21 +68,31 @@ docker-compose up -d
 
 ### 3. Configurer l'environnement
 
-Copier `.env.example` vers `.env` et adapter si nécessaire.
+Copier `.env.example` vers `.env.local` et renseigner les valeurs :
 
-Les valeurs par défaut fonctionnent avec Docker :
-```
+```bash
+# --- Base de données ---
 DATABASE_URL="postgresql://postgres:postgres@localhost:5436/cabinet_rimbault?schema=public"
+
+# --- Auth ---
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-super-secret-key-change-in-production"
 
-# Supabase Storage (pour les images DPE/GES)
+# --- Supabase Storage (images, DPE/GES, PDFs) ---
 NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-key"
 SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
+
+# --- API publique ---
+PUBLIC_API_KEY="your-public-api-key"         # X-API-Key pour les endpoints /api/public/*
+ADMIN_API_TOKEN="your-admin-api-token"       # Bearer token pour /api/users
+
+# --- Emails (optionnel) ---
+RESEND_API_KEY="re_xxxxxxxxxxxx"             # Clé API Resend (https://resend.com)
+AGENCY_EMAIL_FROM="noreply@cabinet-rimbault.fr"  # Adresse expéditeur vérifiée sur Resend
 ```
 
-> **Note**: La `SUPABASE_SERVICE_ROLE_KEY` est utilisée côté serveur pour les uploads (bypass des RLS policies). Ne jamais l'exposer côté client.
+> **Note** : Sans `RESEND_API_KEY`, les emails de confirmation ne sont pas envoyés mais l'API fonctionne normalement. La `SUPABASE_SERVICE_ROLE_KEY` permet de bypass les RLS policies pour les uploads côté serveur — ne jamais l'exposer côté client.
 
 ### 4. Initialiser la base de données
 
@@ -80,146 +111,134 @@ L'application est accessible sur [http://localhost:3000](http://localhost:3000)
 
 ## Accès Admin
 
-Après le seed, connectez-vous à l'admin :
+Après le seed, connectez-vous :
 
-- **URL**: http://localhost:3000/admin/login
-- **Email**: admin@cabinet-rimbault.fr
-- **Mot de passe**: admin123
+- **URL** : http://localhost:3000/login
+- **Email** : admin@cabinet-rimbault.fr
+- **Mot de passe** : admin123
 
 ## Scripts disponibles
 
 | Commande | Description |
 |----------|-------------|
-| `npm run dev` | Lance le serveur de développement |
-| `npm run build` | Compile l'application |
+| `npm run dev` | Serveur de développement |
+| `npm run build` | Compile l'application (prisma generate + next build) |
 | `npm run start` | Lance en production |
-| `npm run db:push` | Synchronise le schéma Prisma |
-| `npm run db:seed` | Exécute le script de seed |
-| `npm run db:studio` | Ouvre Prisma Studio |
-| `npm run db:reset` | Reset la DB et re-seed |
-| `npm run test` | Lance les tests en mode watch |
-| `npm run test:run` | Lance la suite de tests d'intégration une seule fois (utilisé par `pre-push` et la CI) |
-| `npm run test:coverage` | Lance les tests avec le rapport de couverture |
+| `npm run lint` | ESLint |
+| `npm run test` | Tests en mode watch |
+| `npm run test:run` | Tests une seule fois (CI + pre-push) |
+| `npm run db:push` | Synchronise le schéma Prisma vers la DB |
+| `npm run db:seed` | Seed avec données de test |
+| `npm run db:reset` | Reset DB + re-seed |
+| `npm run db:studio` | Prisma Studio GUI |
 
 ## Tests
 
-La suite couvre tous les endpoints API (admin + publics) au niveau route-handler avec Prisma/Supabase/NextAuth mockés — voir `src/__tests__/`. La commande `npm run test:run` est exécutée automatiquement :
-- **en local** avant chaque `git push` via `.husky/pre-push` (avant le `npm run build`),
-- **en CI** via `.github/workflows/ci.yml` sur `push` et `pull_request`.
+27 fichiers de tests, 250 tests couvrant tous les endpoints API (admin + publics) au niveau route-handler avec Prisma, Supabase, NextAuth et Resend mockés.
+
+```
+src/__tests__/
+├── mocks/
+│   ├── prisma.ts           # Mock Prisma client
+│   ├── auth.ts             # Mock NextAuth (setAuthenticated)
+│   ├── api-public-auth.ts  # Mock API key auth (setPublicApiAuth)
+│   ├── supabase.ts         # Mock Supabase Storage
+│   ├── resend.ts           # Mock Resend emails (resetResendMocks)
+│   └── fixtures.ts         # Données de test partagées
+└── api/
+    ├── properties.test.ts
+    ├── properties-id.test.ts
+    ├── evaluations.test.ts
+    ├── evaluations-id.test.ts
+    ├── leads.test.ts
+    ├── leads-id.test.ts
+    ├── notifications-count.test.ts
+    ├── public-contact.test.ts
+    ├── public-evaluation.test.ts
+    └── ...
+```
+
+Exécution automatique :
+- **pre-commit** : `npm run lint` (via Husky)
+- **pre-push** : `npm run test:run` puis `npm run build`
+- **CI** : `.github/workflows/ci.yml` (lint → test:run → build)
 
 ## Structure du projet
 
 ```
 src/
 ├── app/
-│   ├── admin/
-│   │   ├── (authenticated)/  # Route group - pages protégées
-│   │   │   ├── dashboard/    # Tableau de bord
-│   │   │   ├── properties/   # Gestion des annonces
-│   │   │   ├── labels/       # Génération étiquettes
-│   │   │   └── layout.tsx    # Layout avec auth check
-│   │   └── login/            # Page de connexion (publique)
+│   ├── (authenticated)/          # Route group — pages admin protégées
+│   │   ├── dashboard/            # Tableau de bord (stats, dernières demandes)
+│   │   ├── properties/           # Gestion des annonces
+│   │   ├── estimations/          # Demandes d'estimation (liste + détail)
+│   │   ├── leads/                # Leads / contacts (liste + détail)
+│   │   ├── labels/               # Étiquettes vitrine
+│   │   ├── descriptive-sheets/   # Fiches descriptives
+│   │   └── settings/             # Paramètres agence
 │   ├── api/
-│   │   ├── auth/             # API NextAuth
-│   │   └── labels/           # API génération étiquettes DPE/GES
-│   └── page.tsx              # Page d'accueil
+│   │   ├── auth/                 # NextAuth
+│   │   ├── properties/           # CRUD annonces (admin)
+│   │   ├── evaluations/          # CRUD estimations (admin)
+│   │   ├── leads/                # CRUD leads (admin)
+│   │   ├── notifications/count/  # Compteur notifications (admin)
+│   │   ├── labels/               # Génération étiquettes DPE/GES
+│   │   └── public/               # API publique (X-API-Key)
+│   │       ├── contact/          # POST — création lead + email
+│   │       ├── evaluation/       # POST — création estimation + email
+│   │       └── properties/       # GET — biens publiés
+│   └── login/                    # Page de connexion
 ├── components/
-│   ├── admin/                # Composants admin (sidebar, header)
-│   ├── labels/               # Composants étiquettes
-│   ├── ui/                   # Composants shadcn/ui
-│   └── providers/            # Providers React
+│   ├── admin/                    # Sidebar, Header, composants admin
+│   ├── ui/                       # shadcn/ui
+│   └── providers/                # Providers React
 ├── lib/
-│   ├── auth.ts               # Configuration NextAuth
-│   ├── prisma.ts             # Client Prisma
-│   ├── supabase.ts           # Client Supabase (Storage)
-│   └── utils.ts              # Utilitaires
-└── types/
-    └── next-auth.d.ts        # Types NextAuth
+│   ├── prisma.ts                 # Client Prisma (singleton)
+│   ├── resend.ts                 # Client Resend (lazy proxy)
+│   ├── supabase.ts               # Clients Supabase (public + admin)
+│   ├── api-auth.ts               # requireAuth() — auth admin
+│   ├── api-public-auth.ts        # requirePublicApiKey() — auth API publique
+│   ├── emails/                   # Templates email HTML
+│   │   ├── contact-confirmation.tsx
+│   │   └── evaluation-confirmation.tsx
+│   └── energy-labels/            # Génération étiquettes DPE/GES (SVG)
+└── __tests__/                    # Tests Vitest
 ```
 
-## Modèle de données
+## Modèle de données (Prisma)
 
-### User
-Utilisateurs de l'admin (agents, administrateurs)
+| Modèle | Description |
+|--------|-------------|
+| `User` | Utilisateurs admin (agents) |
+| `Property` | Biens immobiliers (+ 6 sous-tables 1:1 + 4 collections 1:N) |
+| `Evaluation` | Demandes d'estimation depuis le site vitrine |
+| `Lead` | Demandes de contact depuis le site vitrine |
+| `AgencySettings` | Paramètres agence (singleton, id="default") |
 
-### Property
-Biens immobiliers avec toutes leurs caractéristiques :
-- Informations de base (titre, description, référence)
-- Type et transaction (vente/location)
-- Prix et frais
-- Localisation
-- Caractéristiques (surface, pièces, équipements)
-- DPE et informations énergétiques
-- Copropriété
+Tous les enums sont en français (`VENTE`, `DISPONIBLE`, `NOUVEAU`, etc.).
 
-### PropertyImage
-Images associées aux biens
+## Variables d'environnement
 
-## Développement
+| Variable | Requis | Description |
+|----------|--------|-------------|
+| `DATABASE_URL` | ✅ | URL PostgreSQL |
+| `NEXTAUTH_SECRET` | ✅ | Clé secrète NextAuth |
+| `NEXTAUTH_URL` | ✅ | URL de l'application |
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | URL du projet Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Clé anonyme Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Service role key Supabase (serveur uniquement) |
+| `PUBLIC_API_KEY` | ✅ | Clé API pour les endpoints `/api/public/*` |
+| `ADMIN_API_TOKEN` | ✅ | Bearer token pour `/api/users` |
+| `RESEND_API_KEY` | ❌ | Clé API Resend (emails de confirmation) |
+| `AGENCY_EMAIL_FROM` | ❌ | Adresse expéditeur vérifiée sur Resend |
 
-### Ajouter un composant shadcn/ui
+## Configuration Resend (emails)
 
-```bash
-npx shadcn@latest add [component-name]
-```
+Pour activer l'envoi d'emails de confirmation :
 
-### Modifier le schéma Prisma
+1. Créer un compte sur [resend.com](https://resend.com)
+2. Vérifier un domaine d'envoi (ex: `cabinet-rimbault.fr`)
+3. Récupérer la clé API et la renseigner dans `RESEND_API_KEY`
+4. Configurer `AGENCY_EMAIL_FROM` avec l'adresse vérifiée (ex: `noreply@cabinet-rimbault.fr`)
 
-1. Modifier `prisma/schema.prisma`
-2. Exécuter `npm run db:push`
-3. Mettre à jour le seed si nécessaire
-
-## Déploiement
-
-### Variables d'environnement à configurer
-
-- `DATABASE_URL`: URL de la base PostgreSQL
-- `NEXTAUTH_URL`: URL de l'application
-- `NEXTAUTH_SECRET`: Clé secrète (générer avec `openssl rand -base64 32`)
-
-### Avec Supabase
-
-Pour utiliser Supabase en production :
-1. Créer un projet sur supabase.com
-2. Utiliser l'URL PostgreSQL fournie dans `DATABASE_URL`
-3. Configurer le Storage pour les images (voir ci-dessous)
-
-### Configuration Supabase Storage (étiquettes DPE/GES)
-
-Les étiquettes DPE et GES sont générées via une API externe et stockées dans Supabase Storage.
-
-1. **Créer les buckets** dans Supabase Storage :
-   - `labels` : pour les étiquettes PDF générées
-   - `files` : pour les images DPE/GES temporaires
-2. **Configurer les buckets comme "Public"** (pour la lecture des fichiers)
-3. **Récupérer les clés** (Settings > API) :
-   - `NEXT_PUBLIC_SUPABASE_URL` : URL du projet
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` : Clé anonyme (anon/public)
-   - `SUPABASE_SERVICE_ROLE_KEY` : Service role key (pour les uploads côté serveur)
-
-> **Important**: La `SUPABASE_SERVICE_ROLE_KEY` permet de bypass les RLS policies pour les opérations d'écriture. Elle est utilisée uniquement côté serveur (API routes) et ne doit jamais être exposée côté client.
-
-### API Labels
-
-#### POST `/api/labels/generate`
-Génère une seule étiquette (DPE ou GES) :
-```json
-{
-  "propertyId": "property-id",
-  "type": "dpe",
-  "lettre": "C",
-  "valeur": 150,
-  "version": "2021"
-}
-```
-
-#### PUT `/api/labels/generate`
-Génère les deux étiquettes en une requête :
-```json
-{
-  "propertyId": "property-id",
-  "dpe": { "lettre": "C", "valeur": 150 },
-  "ges": { "lettre": "B", "valeur": 25 },
-  "version": "2021"
-}
-```
+Les emails sont envoyés en fire-and-forget : un échec d'envoi est loggé mais ne bloque jamais la réponse API.

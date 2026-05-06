@@ -119,7 +119,7 @@ function LoginForm() {
         </CardHeader>
         <CardContent className="pt-4 pb-8">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form method="POST" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               {error && (
                 <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
                   {error}
@@ -135,6 +135,7 @@ function LoginForm() {
                     <FormControl>
                       <Input
                         type="email"
+                        autoComplete="username"
                         placeholder="admin@cabinet-rimbault.fr"
                         className="h-10"
                         {...field}
@@ -155,6 +156,7 @@ function LoginForm() {
                       <div className="relative">
                         <Input
                           type={showPassword ? "text" : "password"}
+                          autoComplete="current-password"
                           placeholder="••••••••"
                           className="h-10 pr-10"
                           {...field}

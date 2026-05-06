@@ -1,4 +1,5 @@
-import { Building2, Eye, Tag, TrendingUp, ArrowUpRight } from "lucide-react"
+import { Building2, Eye, Tag, TrendingUp, ArrowUpRight, MessageSquare, Calculator } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -63,31 +64,63 @@ export default async function DashboardPage() {
     sousCompromis,
     labelsGenerated,
     recentProperties,
+    newLeadsCount,
+    newEvaluationsCount,
+    recentLeads,
+    recentEvaluations,
   ] = await Promise.all([
-    // Total des annonces
     prisma.property.count(),
-    // Annonces publiées
     prisma.property.count({
       where: { isPublished: true },
     }),
-    // Sous compromis
     prisma.property.count({
       where: { status: 'SOUS_COMPROMIS' },
     }),
-    // Étiquettes générées (via PropertyEnergy)
     prisma.propertyEnergy.count({
       where: { labelGenerated: true },
     }),
-    // 5 dernières annonces avec leurs relations (délai de 2s pour tester le skeleton)
     prisma.property.findMany({
-      take: 5,  
+      take: 5,
       orderBy: { createdAt: 'desc' },
       include: {
         location: true,
         finance: true,
       },
     }),
+    prisma.lead.count({ where: { status: 'NOUVEAU' } }),
+    prisma.evaluation.count({ where: { status: 'NOUVELLE' } }),
+    prisma.lead.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, firstName: true, lastName: true, subject: true, status: true, createdAt: true },
+    }),
+    prisma.evaluation.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, firstName: true, lastName: true, propertyType: true, status: true, createdAt: true },
+    }),
   ])
+
+  const recentRequests = [
+    ...recentLeads.map((l) => ({
+      id: l.id,
+      type: "lead" as const,
+      name: `${l.firstName} ${l.lastName}`,
+      detail: l.subject,
+      status: l.status,
+      createdAt: l.createdAt,
+    })),
+    ...recentEvaluations.map((e) => ({
+      id: e.id,
+      type: "evaluation" as const,
+      name: `${e.firstName} ${e.lastName}`,
+      detail: e.propertyType,
+      status: e.status,
+      createdAt: e.createdAt,
+    })),
+  ]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5)
 
   // Calculer les pourcentages
   const publishedPercentage = totalProperties > 0 
@@ -159,6 +192,47 @@ export default async function DashboardPage() {
         ))}
       </div>
 
+      {/* Demandes en attente */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link href="/leads?status=NOUVEAU" className="block">
+          <Card className="shadow-card hover:shadow-elevated transition-all duration-200 cursor-pointer group">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 group-hover:bg-blue-200 transition-colors">
+                    <MessageSquare className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-semibold text-foreground">{newLeadsCount}</p>
+                    <p className="text-sm font-medium text-foreground">Nouvelles demandes</p>
+                  </div>
+                </div>
+                <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/estimations?status=NOUVELLE" className="block">
+          <Card className="shadow-card hover:shadow-elevated transition-all duration-200 cursor-pointer group">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 group-hover:bg-blue-200 transition-colors">
+                    <Calculator className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-semibold text-foreground">{newEvaluationsCount}</p>
+                    <p className="text-sm font-medium text-foreground">Nouvelles estimations</p>
+                  </div>
+                </div>
+                <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
       {/* Recent Properties */}
       <Card className="shadow-card">
         <CardHeader className="flex flex-row items-center justify-between pb-4">
@@ -228,6 +302,77 @@ export default async function DashboardPage() {
                     >
                       {translateStatus(property.status)}
                     </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dernières demandes */}
+      <Card className="shadow-card">
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
+          <div>
+            <CardTitle className="text-base font-semibold">Dernières demandes</CardTitle>
+            <CardDescription className="text-sm">
+              Demandes de contact et estimations récentes
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {recentRequests.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <MessageSquare className="h-12 w-12 text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground">Aucune demande pour le moment</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentRequests.map((req) => (
+                <Link
+                  key={`${req.type}-${req.id}`}
+                  href={req.type === "lead" ? `/leads/${req.id}` : `/estimations/${req.id}`}
+                  className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-secondary/50 transition-colors block"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                      req.type === "lead" ? "bg-violet-100" : "bg-orange-100"
+                    }`}>
+                      {req.type === "lead" ? (
+                        <MessageSquare className="h-5 w-5 text-violet-600" />
+                      ) : (
+                        <Calculator className="h-5 w-5 text-orange-600" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">{req.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Badge variant="outline" className={`text-xs ${
+                          req.type === "lead"
+                            ? "bg-violet-50 text-violet-700 border-violet-200"
+                            : "bg-orange-50 text-orange-700 border-orange-200"
+                        }`}>
+                          {req.type === "lead" ? "Contact" : "Estimation"}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">{req.detail}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="outline" className={`text-xs ${
+                      req.status === "NOUVEAU" || req.status === "NOUVELLE"
+                        ? "bg-blue-50 text-blue-700 border-blue-200"
+                        : req.status === "EN_COURS"
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : req.status === "TRAITE" || req.status === "TRAITEE"
+                        ? "bg-green-50 text-green-700 border-green-200"
+                        : "bg-muted text-muted-foreground border-border"
+                    }`}>
+                      {req.status === "NOUVEAU" ? "Nouveau" : req.status === "NOUVELLE" ? "Nouvelle" : req.status === "EN_COURS" ? "En cours" : req.status === "TRAITE" ? "Traité" : req.status === "TRAITEE" ? "Traitée" : "Archivé"}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(req.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}
+                    </p>
                   </div>
                 </Link>
               ))}

@@ -3,7 +3,8 @@ import { NextRequest } from 'next/server'
 
 import { mockPrismaClient, resetPrismaMocks } from '../mocks/prisma'
 import { setPublicApiAuth, resetPublicApiAuthMocks } from '../mocks/api-public-auth'
-import { mockLead, mockCreateContactBody } from '../mocks/fixtures'
+import { mockResendSend, resetResendMocks } from '../mocks/resend'
+import { mockLead, mockCreateContactBody, mockAgencySettings } from '../mocks/fixtures'
 
 import { POST } from '@/app/api/public/contact/route'
 
@@ -19,6 +20,8 @@ describe('/api/public/contact', () => {
   beforeEach(() => {
     resetPrismaMocks()
     resetPublicApiAuthMocks()
+    resetResendMocks()
+    mockPrismaClient.agencySettings.findUnique.mockResolvedValue(mockAgencySettings)
   })
 
   it('retourne 401 sans API Key', async () => {
@@ -158,5 +161,37 @@ describe('/api/public/contact', () => {
     const data = await response.json()
     expect(response.status).toBe(500)
     expect(data.success).toBe(false)
+  })
+
+  it('devrait envoyer un email de confirmation après création', async () => {
+    mockPrismaClient.lead.create.mockResolvedValue(mockLead)
+
+    await POST(buildRequest(mockCreateContactBody))
+
+    // Wait for the fire-and-forget promise chain to settle
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(mockPrismaClient.agencySettings.findUnique).toHaveBeenCalledWith({
+      where: { id: 'default' },
+    })
+    expect(mockResendSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: mockCreateContactBody.contact.email,
+        subject: expect.stringContaining('REF-001'),
+        html: expect.stringContaining(mockCreateContactBody.contact.firstName),
+      })
+    )
+  })
+
+  it('devrait retourner 201 même si l\'envoi d\'email échoue', async () => {
+    mockPrismaClient.lead.create.mockResolvedValue(mockLead)
+    mockResendSend.mockRejectedValueOnce(new Error('Resend error'))
+
+    const response = await POST(buildRequest(mockCreateContactBody))
+
+    expect(response.status).toBe(201)
+
+    // Wait for the fire-and-forget promise chain to settle
+    await new Promise((resolve) => setTimeout(resolve, 50))
   })
 })

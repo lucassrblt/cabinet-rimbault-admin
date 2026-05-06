@@ -13,6 +13,7 @@ import {
   Home,
   Plus,
   Calculator,
+  MessageSquare,
 } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
@@ -33,6 +34,11 @@ const navigation = [
     name: "Estimations",
     href: "/estimations",
     icon: Calculator,
+  },
+  {
+    name: "Demandes de contact",
+    href: "/leads",
+    icon: MessageSquare,
   },
   {
     name: "Étiquettes vitrine",

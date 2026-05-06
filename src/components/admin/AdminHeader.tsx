@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Menu, Bell, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,6 +25,16 @@ interface AdminHeaderProps {
 }
 
 export function AdminHeader({ user }: AdminHeaderProps) {
+  const router = useRouter()
+  const [notifCount, setNotifCount] = useState(0)
+
+  useEffect(() => {
+    fetch("/api/notifications/count")
+      .then((res) => res.json())
+      .then((data) => setNotifCount(data.total ?? 0))
+      .catch(() => setNotifCount(0))
+  }, [])
+
   const initials = user.name
     ? user.name
         .split(" ")
@@ -55,10 +67,19 @@ export function AdminHeader({ user }: AdminHeaderProps) {
         {/* Right side */}
         <div className="flex items-center gap-x-3 lg:gap-x-4">
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative text-muted-foreground hover:text-foreground"
+            onClick={() => router.push("/leads")}
+          >
             <span className="sr-only">Voir les notifications</span>
             <Bell className="h-5 w-5" />
-            <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
+            {notifCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                {notifCount > 99 ? "99+" : notifCount}
+              </span>
+            )}
           </Button>
 
           {/* Separator */}

@@ -3,7 +3,8 @@ import { NextRequest } from 'next/server'
 
 import { mockPrismaClient, resetPrismaMocks } from '../mocks/prisma'
 import { setPublicApiAuth, resetPublicApiAuthMocks } from '../mocks/api-public-auth'
-import { mockCreateEvaluationBody, mockEvaluation } from '../mocks/fixtures'
+import { mockResendSend, resetResendMocks } from '../mocks/resend'
+import { mockCreateEvaluationBody, mockEvaluation, mockAgencySettings } from '../mocks/fixtures'
 
 import { POST } from '@/app/api/public/evaluation/route'
 
@@ -19,6 +20,8 @@ describe('/api/public/evaluation', () => {
   beforeEach(() => {
     resetPrismaMocks()
     resetPublicApiAuthMocks()
+    resetResendMocks()
+    mockPrismaClient.agencySettings.findUnique.mockResolvedValue(mockAgencySettings)
   })
 
   it('retourne 401 sans API Key', async () => {
@@ -129,5 +132,37 @@ describe('/api/public/evaluation', () => {
     expect(call.data.source).toBeNull()
     expect(call.data.userAgent).toBeNull()
     expect(call.data.referer).toBeNull()
+  })
+
+  it('devrait envoyer un email de confirmation après création', async () => {
+    mockPrismaClient.evaluation.create.mockResolvedValue(mockEvaluation)
+
+    await POST(buildRequest(mockCreateEvaluationBody))
+
+    // Wait for the fire-and-forget promise chain to settle
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(mockPrismaClient.agencySettings.findUnique).toHaveBeenCalledWith({
+      where: { id: 'default' },
+    })
+    expect(mockResendSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: mockCreateEvaluationBody.email,
+        subject: "Votre demande d'estimation a bien été reçue",
+        html: expect.stringContaining(mockCreateEvaluationBody.firstName),
+      })
+    )
+  })
+
+  it('devrait retourner 201 même si l\'envoi d\'email échoue', async () => {
+    mockPrismaClient.evaluation.create.mockResolvedValue(mockEvaluation)
+    mockResendSend.mockRejectedValueOnce(new Error('Resend error'))
+
+    const response = await POST(buildRequest(mockCreateEvaluationBody))
+
+    expect(response.status).toBe(201)
+
+    // Wait for the fire-and-forget promise chain to settle
+    await new Promise((resolve) => setTimeout(resolve, 50))
   })
 })

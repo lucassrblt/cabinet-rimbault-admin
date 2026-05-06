@@ -3,6 +3,8 @@ import { z } from "zod"
 import { LeadSubject, LeadProfile, LeadFinancing } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { withPublicApiAuth } from "@/lib/api-public-auth"
+import { resend } from "@/lib/resend"
+import { contactConfirmationEmail } from "@/lib/emails/contact-confirmation"
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -82,6 +84,28 @@ export async function POST(request: NextRequest) {
           referer: data.meta?.referer ?? null,
         },
       })
+
+      // Fire-and-forget email
+      prisma.agencySettings.findUnique({ where: { id: 'default' } })
+        .then((settings) => {
+          const email = contactConfirmationEmail({
+            firstName: data.contact.firstName,
+            lastName: data.contact.lastName,
+            subject: data.subject,
+            propertyReference: data.propertyReference,
+            message: data.contact.message,
+            agencyName: settings?.name || 'Cabinet Rimbault',
+            agencyPhone: settings?.phone || undefined,
+            agencyEmail: settings?.email || undefined,
+          })
+          return resend.emails.send({
+            from: process.env.AGENCY_EMAIL_FROM || 'noreply@cabinet-rimbault.fr',
+            to: data.contact.email,
+            subject: email.subject,
+            html: email.html,
+          })
+        })
+        .catch((err) => console.error('[Email] Failed to send contact confirmation:', err))
 
       return NextResponse.json(
         {

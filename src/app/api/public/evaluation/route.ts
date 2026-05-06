@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { PropertyCondition } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { withPublicApiAuth } from "@/lib/api-public-auth"
+import { resend } from "@/lib/resend"
+import { evaluationConfirmationEmail } from "@/lib/emails/evaluation-confirmation"
 
 const PROPERTY_CONDITION_VALUES = Object.values(PropertyCondition) as string[]
 
@@ -96,6 +98,29 @@ export async function POST(request: NextRequest) {
       })
 
       console.log("Public evaluation created successfully:", evaluation.id)
+
+      // Fire-and-forget email
+      prisma.agencySettings.findUnique({ where: { id: 'default' } })
+        .then((settings) => {
+          const email = evaluationConfirmationEmail({
+            firstName: body.firstName,
+            lastName: body.lastName,
+            propertyType: body.propertyType,
+            postalCode: body.postalCode,
+            surface: body.surface ? Number(body.surface) : undefined,
+            rooms: body.rooms ? Number(body.rooms) : undefined,
+            agencyName: settings?.name || 'Cabinet Rimbault',
+            agencyPhone: settings?.phone || undefined,
+            agencyEmail: settings?.email || undefined,
+          })
+          return resend.emails.send({
+            from: process.env.AGENCY_EMAIL_FROM || 'noreply@cabinet-rimbault.fr',
+            to: body.email,
+            subject: email.subject,
+            html: email.html,
+          })
+        })
+        .catch((err) => console.error('[Email] Failed to send evaluation confirmation:', err))
 
       return NextResponse.json({
         success: true,

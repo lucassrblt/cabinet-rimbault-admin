@@ -69,6 +69,7 @@ export const mockPrismaClient = {
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    count: vi.fn(),
   },
   lead: {
     findMany: vi.fn(),
@@ -76,6 +77,7 @@ export const mockPrismaClient = {
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    count: vi.fn(),
   },
   agencySettings: {
     findUnique: vi.fn(),
