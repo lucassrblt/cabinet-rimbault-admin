@@ -22,8 +22,8 @@ export default withAuth(
     }
 
     // Routes publiques de l'API (pas besoin d'authentification)
+    // Note : /api/public/* a été extrait vers le repo cabinet-rimbault-api.
     const publicApiRoutes = [
-      "/api/public",
       "/api/properties/recent",
       "/api/evaluations", // POST est public, GET vérifie l'auth dans le handler
     ]
@@ -92,8 +92,8 @@ export default withAuth(
         }
 
         // Routes publiques de l'API (pas besoin d'authentification)
+        // Note : /api/public/* a été extrait vers le repo cabinet-rimbault-api.
         const publicApiRoutes = [
-          "/api/public",
           "/api/properties/recent",
           "/api/evaluations", // POST est public, GET vérifie l'auth dans le handler
         ]
@@ -127,11 +127,12 @@ export const config = {
      * - public folder
      * - api/users (utilise son propre système d'auth avec Bearer token)
      * - api/auth (routes NextAuth)
-     * - api/public (routes publiques de l'API)
      * - api/properties/recent (route publique pour les biens récents)
      * - api/evaluations (POST public, GET vérifie l'auth dans le handler)
+     *
+     * Note : /api/public/* a été extrait vers le repo cabinet-rimbault-api.
      */
-    "/((?!_next/static|_next/image|favicon.ico|public/|api/users|api/auth|api/public|api/properties/recent|api/evaluations).*)",
+    "/((?!_next/static|_next/image|favicon.ico|public/|api/users|api/auth|api/properties/recent|api/evaluations).*)",
   ],
 }
 

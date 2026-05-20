@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Cabinet Rimbault Admin — a real estate agency management app (French market). Next.js 15 (App Router) admin dashboard backed by PostgreSQL/Prisma, with a public API consumed by a separate storefront app. All UI text, enums, and domain terminology are in French.
+Cabinet Rimbault Admin — a real estate agency management app (French market). Next.js 15 (App Router) admin dashboard backed by PostgreSQL/Prisma. All UI text, enums, and domain terminology are in French.
+
+The public API consumed by the storefront vitrine (`cabinet-rimbault.fr`) has been **extracted** into a separate repo `cabinet-rimbault-api`. The admin and the public API share the same Supabase Postgres database via Prisma. The admin owns the schema and runs all migrations; the API project only generates the Prisma client from a copy of the schema.
 
 ## Commands
 
@@ -41,12 +43,16 @@ CI (.github/workflows/ci.yml) mirrors this: lint → test:run → build.
 
 ## Architecture
 
-### Dual API surface
+### API surface
 
-1. **Admin API** (`src/app/api/`) — session-protected via NextAuth (JWT strategy, credentials provider). Auth check: call `requireAuth()` from `src/lib/api-auth.ts`.
-2. **Public API** (`src/app/api/public/`) — protected by `X-API-Key` header validated against `PUBLIC_API_KEY` env var. Auth check: call `requirePublicApiKey()` from `src/lib/api-public-auth.ts`. Shared query helpers live in `src/lib/api-public-helpers.ts` (public property filters, sanitization of sensitive fields like `internalNotes`/`userId`).
+All routes under `src/app/api/` are session-protected via NextAuth (JWT strategy, credentials provider). Auth check: call `requireAuth()` from `src/lib/api-auth.ts`.
 
-Middleware (`src/middleware.ts`) enforces auth at the edge: all routes require a NextAuth token except `/login`, `/api/auth`, `/api/public/*`, `/api/users` (Bearer token), `/api/properties/recent`, and `/api/evaluations` (POST is public, GET checks auth in handler).
+Exceptions whitelisted in `src/middleware.ts` :
+- `/login`, `/api/auth`, `/api/users` (Bearer token).
+- `/api/properties/recent` (legacy public list, kept for backward compat).
+- `/api/evaluations` (POST public, GET checks auth in handler).
+
+The previous `/api/public/*` surface lives now in the separate repo **`cabinet-rimbault-api`** (Railway-hosted, `api.cabinet-rimbault.fr`). Do not reintroduce public routes here — extend the API repo instead.
 
 ### Data model (Prisma)
 
@@ -81,15 +87,13 @@ Tests live in `src/__tests__/api/` and cover API route handlers. They mock Prism
 
 - `src/__tests__/mocks/prisma.ts` — mock Prisma client; call `resetPrismaMocks()` in `beforeEach`.
 - `src/__tests__/mocks/auth.ts` — call `setAuthenticated(true/false)` to toggle admin auth.
-- `src/__tests__/mocks/api-public-auth.ts` — call `setPublicApiAuth(true/false)` for public API key auth.
 - `src/__tests__/mocks/supabase.ts` — mock storage operations; helpers like `setUploadSuccess()`.
-- `src/__tests__/mocks/resend.ts` — mock Resend email sending; call `resetResendMocks()` in `beforeEach`.
 - `src/__tests__/mocks/fixtures.ts` — shared property/evaluation/lead fixtures.
 
 Tests call the route handler directly (e.g., `import { GET } from '@/app/api/properties/route'`) and pass `new NextRequest(...)`.
 
 ## Environment Variables
 
-Required: `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `PUBLIC_API_KEY`, `ADMIN_API_TOKEN`.
+Required: `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_API_TOKEN`.
 
-Optional (emails): `RESEND_API_KEY` (Resend API key for sending confirmation emails), `AGENCY_EMAIL_FROM` (verified sender address, e.g. `noreply@cabinet-rimbault.fr`). If not set, confirmation emails are silently skipped.
+`PUBLIC_API_KEY`, `RESEND_API_KEY` and `AGENCY_EMAIL_FROM` belong to the extracted public API (`cabinet-rimbault-api` repo). They no longer need to be set on the admin.
