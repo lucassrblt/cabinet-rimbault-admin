@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { SidebarNavLink } from "@/components/admin/SidebarNavLink"
 import {
   LayoutDashboard,
   Building2,
@@ -83,10 +84,11 @@ export function MobileSidebar() {
                 return (
                   <li key={item.name}>
                     <SheetClose asChild>
-                      <Link
+                      <SidebarNavLink
                         href={item.href}
+                        aria-current={isActive ? "page" : undefined}
                         className={cn(
-                          "group flex gap-x-3 rounded-lg p-2.5 text-sm font-medium leading-6 transition-all duration-200",
+                          "group flex items-center gap-x-3 rounded-lg p-2.5 text-sm font-medium leading-6 transition-all duration-200",
                           isActive
                             ? "bg-primary text-primary-foreground shadow-sm"
                             : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -101,7 +103,7 @@ export function MobileSidebar() {
                           )}
                         />
                         {item.name}
-                      </Link>
+                      </SidebarNavLink>
                     </SheetClose>
                   </li>
                 )
@@ -123,13 +125,13 @@ export function MobileSidebar() {
             
             <Separator className="mb-4" />
             <SheetClose asChild>
-              <Link
+              <SidebarNavLink
                 href="/settings"
-                className="group flex gap-x-3 rounded-lg p-2.5 text-sm font-medium leading-6 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200"
+                className="group flex items-center gap-x-3 rounded-lg p-2.5 text-sm font-medium leading-6 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200"
               >
                 <Settings className="h-5 w-5 shrink-0 text-muted-foreground group-hover:text-foreground" />
                 Paramètres
-              </Link>
+              </SidebarNavLink>
             </SheetClose>
             <Button
               variant="ghost"
