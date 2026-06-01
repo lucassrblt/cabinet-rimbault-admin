@@ -2,6 +2,10 @@
 
 Application web pour la gestion d'une agence immobilière avec interface d'administration et API publique pour le site vitrine.
 
+🔗 **En production :** back-office [admin.cabinet-rimbault.fr](https://admin.cabinet-rimbault.fr) · vitrine [cabinet-rimbault.fr](https://cabinet-rimbault.fr)
+
+> Architecture en 3 services : ce back-office expose une API consommée par `cabinet-rimbault-api` (API publique) puis par `cabinet-rimbault-vitrine` (front public).
+
 ## Fonctionnalités
 
 ### Admin
