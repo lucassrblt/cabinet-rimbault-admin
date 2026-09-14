@@ -190,6 +190,94 @@ describe('/api/labels/preview-energy', () => {
       expect(data.property.title).toBe('Test Property')
     })
 
+    it('devrait générer un aperçu sans propertyId (bien pas encore créé)', async () => {
+      setAuthenticated(true)
+
+      const request = new Request('http://localhost:3000/api/labels/preview-energy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          energyValue: 180,
+          energyClass: 'D',
+          gesValue: 35,
+          gesClass: 'E',
+        }),
+      })
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.preview.dpeImageUrl).toMatch(/^data:image\/svg\+xml;base64,/)
+      expect(data.preview.gesImageUrl).toMatch(/^data:image\/svg\+xml;base64,/)
+      expect(data.preview.energyClass).toBe('D')
+      expect(data.preview.gesClass).toBe('E')
+      // Sans propertyId, aucune lecture en base et pas de bloc `property`.
+      expect(mockPrismaClient.property.findUnique).not.toHaveBeenCalled()
+      expect(data.property).toBeUndefined()
+    })
+
+    it('devrait normaliser les classes en majuscules', async () => {
+      setAuthenticated(true)
+
+      const request = new Request('http://localhost:3000/api/labels/preview-energy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          energyValue: 180,
+          energyClass: 'd',
+          gesValue: 35,
+          gesClass: 'e',
+        }),
+      })
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.preview.energyClass).toBe('D')
+      expect(data.preview.gesClass).toBe('E')
+    })
+
+    it('devrait retourner 400 pour une classe DPE invalide', async () => {
+      setAuthenticated(true)
+
+      const request = new Request('http://localhost:3000/api/labels/preview-energy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          energyValue: 180,
+          energyClass: 'Z',
+          gesValue: 35,
+          gesClass: 'E',
+        }),
+      })
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toContain('Classe DPE invalide')
+    })
+
+    it('devrait retourner 400 pour une classe GES invalide', async () => {
+      setAuthenticated(true)
+
+      const request = new Request('http://localhost:3000/api/labels/preview-energy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          energyValue: 180,
+          energyClass: 'D',
+          gesValue: 35,
+          gesClass: 'Z',
+        }),
+      })
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toContain('Classe GES invalide')
+    })
+
     it('devrait retourner 500 en cas d\'erreur générale', async () => {
       setAuthenticated(true)
 

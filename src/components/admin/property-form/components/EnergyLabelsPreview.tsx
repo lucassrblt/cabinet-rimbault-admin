@@ -43,12 +43,14 @@ export function EnergyLabelsPreview({
   // Valeurs initiales pour comparaison
   const initialEnergyClass = initialData?.energy?.energyClass
   const initialEnergyValue = initialData?.energy?.energyValue
+  const initialFinalEnergyValue = initialData?.energy?.finalEnergyValue
   const initialGesClass = initialData?.energy?.gesClass
   const initialGesValue = initialData?.energy?.gesValue
 
   // Valeurs actuelles du formulaire
   const currentFormEnergyClass = form.watch("energyClass")
   const currentFormEnergyValue = form.watch("energyValue")
+  const currentFormFinalEnergyValue = form.watch("finalEnergyValue")
   const currentFormGesClass = form.watch("gesClass")
   const currentFormGesValue = form.watch("gesValue")
 
@@ -56,6 +58,7 @@ export function EnergyLabelsPreview({
   const valuesChanged = mode === "edit" && (
     currentFormEnergyClass !== initialEnergyClass ||
     currentFormEnergyValue !== initialEnergyValue ||
+    currentFormFinalEnergyValue !== initialFinalEnergyValue ||
     currentFormGesClass !== initialGesClass ||
     currentFormGesValue !== initialGesValue
   )
@@ -63,9 +66,9 @@ export function EnergyLabelsPreview({
   const handleGenerateLabels = async () => {
     const energyClass = form.getValues("energyClass")
     const energyValue = form.getValues("energyValue")
+    const finalEnergyValue = form.getValues("finalEnergyValue")
     const gesClass = form.getValues("gesClass")
     const gesValue = form.getValues("gesValue")
-    const reference = form.getValues("reference")
 
     // Validation des données
     if (!energyClass || !energyValue || !gesClass || !gesValue) {
@@ -86,26 +89,17 @@ export function EnergyLabelsPreview({
       return
     }
 
-    if (!reference) {
-      toast({
-        title: "Référence manquante",
-        description: "Veuillez renseigner la référence du bien avant de générer les labels.",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsGeneratingLabels(true)
     try {
-      const response = await fetch("/api/labels/generate-preview", {
+      const response = await fetch("/api/labels/preview-energy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          reference,
           energyValue,
           energyClass,
           gesValue,
           gesClass,
+          finalEnergyValue,
         }),
       })
 
@@ -183,7 +177,7 @@ export function EnergyLabelsPreview({
             </div>
             <div className="flex flex-wrap gap-6 justify-center items-end p-4 bg-muted/50 rounded-lg border border-border">
               {currentDpeUrl && (
-                <div className="text-center">
+                <div className="w-full max-w-sm text-center">
                   <div className="text-xs text-muted-foreground mb-2 uppercase font-semibold">
                     DPE - Classe {initialEnergyClass} ({initialEnergyValue} kWh/m²/an)
                   </div>
@@ -191,12 +185,12 @@ export function EnergyLabelsPreview({
                   <img
                     src={currentDpeUrl}
                     alt="Étiquette DPE actuelle"
-                    className="h-48 w-auto object-contain"
+                    className="h-auto w-full object-contain"
                   />
                 </div>
               )}
               {currentGesUrl && (
-                <div className="text-center">
+                <div className="w-full max-w-sm text-center">
                   <div className="text-xs text-muted-foreground mb-2 uppercase font-semibold">
                     GES - Classe {initialGesClass} ({initialGesValue} kg CO₂/m²/an)
                   </div>
@@ -204,7 +198,7 @@ export function EnergyLabelsPreview({
                   <img
                     src={currentGesUrl}
                     alt="Étiquette GES actuelle"
-                    className="h-48 w-auto object-contain"
+                    className="h-auto w-full object-contain"
                   />
                 </div>
               )}
@@ -247,7 +241,7 @@ export function EnergyLabelsPreview({
             </div>
             <div className="flex flex-wrap gap-6 justify-center items-end p-4 bg-primary/5 rounded-lg border border-primary/20">
               {(previewDpeUrl || form.watch("dpeImageUrl")) && (
-                <div className="text-center">
+                <div className="w-full max-w-sm text-center">
                   <div className="text-xs text-muted-foreground mb-2 uppercase font-semibold">
                     DPE - Classe {currentFormEnergyClass} ({currentFormEnergyValue} kWh/m²/an)
                   </div>
@@ -255,12 +249,12 @@ export function EnergyLabelsPreview({
                   <img
                     src={previewDpeUrl || form.watch("dpeImageUrl") || ""}
                     alt="Nouvelle étiquette DPE"
-                    className="h-48 w-auto object-contain"
+                    className="h-auto w-full object-contain"
                   />
                 </div>
               )}
               {(previewGesUrl || form.watch("gesImageUrl")) && (
-                <div className="text-center">
+                <div className="w-full max-w-sm text-center">
                   <div className="text-xs text-muted-foreground mb-2 uppercase font-semibold">
                     GES - Classe {currentFormGesClass} ({currentFormGesValue} kg CO₂/m²/an)
                   </div>
@@ -268,7 +262,7 @@ export function EnergyLabelsPreview({
                   <img
                     src={previewGesUrl || form.watch("gesImageUrl") || ""}
                     alt="Nouvelle étiquette GES"
-                    className="h-48 w-auto object-contain"
+                    className="h-auto w-full object-contain"
                   />
                 </div>
               )}
@@ -282,7 +276,7 @@ export function EnergyLabelsPreview({
             <div className="text-sm font-medium text-foreground">Prévisualisation des étiquettes</div>
             <div className="flex flex-wrap gap-6 justify-center items-end p-4 bg-muted/50 rounded-lg">
               {(previewDpeUrl || form.watch("dpeImageUrl")) && (
-                <div className="text-center">
+                <div className="w-full max-w-sm text-center">
                   <div className="text-xs text-muted-foreground mb-2 uppercase font-semibold">
                     DPE
                   </div>
@@ -290,12 +284,12 @@ export function EnergyLabelsPreview({
                   <img
                     src={previewDpeUrl || form.watch("dpeImageUrl") || ""}
                     alt="Étiquette DPE"
-                    className="h-48 w-auto object-contain"
+                    className="h-auto w-full object-contain"
                   />
                 </div>
               )}
               {(previewGesUrl || form.watch("gesImageUrl")) && (
-                <div className="text-center">
+                <div className="w-full max-w-sm text-center">
                   <div className="text-xs text-muted-foreground mb-2 uppercase font-semibold">
                     GES
                   </div>
@@ -303,7 +297,7 @@ export function EnergyLabelsPreview({
                   <img
                     src={previewGesUrl || form.watch("gesImageUrl") || ""}
                     alt="Étiquette GES"
-                    className="h-48 w-auto object-contain"
+                    className="h-auto w-full object-contain"
                   />
                 </div>
               )}

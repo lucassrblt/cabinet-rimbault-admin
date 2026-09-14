@@ -38,12 +38,8 @@ vi.mock('@/lib/supabase', () => ({
   deleteFolderFromStorage: (...args: Parameters<typeof mockDeleteFolderFromStorage>) => mockDeleteFolderFromStorage(...args),
   getPublicUrl: (...args: Parameters<typeof mockGetPublicUrl>) => mockGetPublicUrl(...args),
   BUCKETS: {
-    LABELS: 'labels',
-    FILES: 'files',
-    DPE_IMAGES: 'dpe-images',
-    PROPERTY_IMAGES: 'property-images',
     PROPERTY_FILES: 'property-files',
-    DESCRIPTIVE_SHEETS: 'descriptive_sheets',
+    PROPERTY_IMAGES: 'property-images',
   },
   testSupabaseConnection: vi.fn().mockResolvedValue(undefined),
 }))

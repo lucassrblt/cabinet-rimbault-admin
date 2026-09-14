@@ -141,7 +141,6 @@ export function PropertyForm({
     const energyValue = form.getValues("energyValue");
     const gesClass = form.getValues("gesClass");
     const gesValue = form.getValues("gesValue");
-    const reference = form.getValues("reference");
 
     if (energyClass === "VIERGE" || gesClass === "VIERGE") {
       toast({
@@ -155,11 +154,10 @@ export function PropertyForm({
 
     setIsGeneratingLabels(true);
     try {
-      const response = await fetch("/api/labels/generate-preview", {
+      const response = await fetch("/api/labels/preview-energy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          reference,
           energyValue,
           energyClass,
           gesValue,

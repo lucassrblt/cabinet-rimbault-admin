@@ -47,12 +47,8 @@ export async function testSupabaseConnection(): Promise<void> {
 
 // Bucket names - IMPORTANT: ces noms doivent correspondre aux buckets créés dans Supabase
 export const BUCKETS = {
-  LABELS: "labels",
-  FILES: "files", // Pour stocker les images DPE/GES générées (déprécié, utiliser PROPERTY_FILES)
-  DPE_IMAGES: "dpe-images",
-  PROPERTY_IMAGES: "property-images", // Déprécié, utiliser PROPERTY_FILES
-  PROPERTY_FILES: "property-files", // Bucket unique pour les images et fichiers DPE/GES
-  DESCRIPTIVE_SHEETS: "descriptive_sheets", // Pour les fiches descriptives PDF
+  PROPERTY_FILES: "property-files", // Bucket unique : images, fichiers DPE/GES, PDFs
+  PROPERTY_IMAGES: "property-images", // Déprécié : conservé pour résoudre les anciennes URLs
 } as const
 
 /**

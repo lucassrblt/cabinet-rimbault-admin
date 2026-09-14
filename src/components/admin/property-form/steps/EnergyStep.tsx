@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { EnergyLabelsPreview } from "../components/EnergyLabelsPreview"
+import { EnergyConsistencyWarning } from "../components/EnergyConsistencyWarning"
 import { ENERGY_CLASSES, HEATING_TYPE_OPTIONS, HEATING_ENERGY_OPTIONS } from "../constants"
 import type { PropertyFormData, PropertyApiData } from "../types"
 
@@ -89,7 +90,7 @@ export function EnergyStep({
               name="energyValue"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Consommation énergétique *</FormLabel>
+                  <FormLabel>Consommation (énergie primaire) *</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <Input 
@@ -105,6 +106,36 @@ export function EnergyStep({
                       </span>
                     </div>
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="finalEnergyValue"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Énergie finale</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        placeholder="87"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                        className="pr-24"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                        kWh/m²/an
+                      </span>
+                    </div>
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    Facultatif — la ligne n&apos;apparaît sur l&apos;étiquette que si elle est renseignée
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -164,6 +195,13 @@ export function EnergyStep({
               )}
             />
           </div>
+
+          <EnergyConsistencyWarning
+            energyClass={form.watch("energyClass")}
+            energyValue={form.watch("energyValue")}
+            gesClass={form.watch("gesClass")}
+            gesValue={form.watch("gesValue")}
+          />
         </CardContent>
       </Card>
 

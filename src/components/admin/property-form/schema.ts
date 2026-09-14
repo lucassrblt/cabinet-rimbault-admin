@@ -128,6 +128,14 @@ export const propertyFormSchema = z.object({
     .number()
     .int()
     .positive("La consommation énergétique doit être positive"),
+  // Énergie finale : facultative. Sans elle, l'étiquette DPE se limite à
+  // l'énergie primaire et aux émissions.
+  finalEnergyValue: z.coerce
+    .number()
+    .int()
+    .positive("La consommation en énergie finale doit être positive")
+    .optional()
+    .nullable(),
   gesClass: z.enum(["A", "B", "C", "D", "E", "F", "G", "VIERGE"], {
     required_error: "La classe GES est obligatoire",
   }),

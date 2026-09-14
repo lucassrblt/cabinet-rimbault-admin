@@ -382,10 +382,14 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
             {(property.dpeImageUrl || property.gesImageUrl) && (
               <div
                 style={{
+                  // Étiquettes désormais au format paysage : on les empile au
+                  // lieu de les poser côte à côte, sans quoi elles seraient
+                  // illisibles dans la demi-largeur de l'A4.
                   display: "flex",
-                  justifyContent: "center",
-                  alignItems: "flex-end",
-                  gap: "30px",
+                  flexDirection: "column",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  gap: "8px",
                   paddingTop: "10px",
                   marginTop: "auto",
                 }}
@@ -408,10 +412,14 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                       src={property.dpeImageUrl}
                       alt="Étiquette DPE"
                       style={{
-                        height: "160px",
-                        width: "auto",
+                        width: "100%",
+                        maxWidth: "380px",
+                        height: "auto",
                         objectFit: "contain",
                       }}
+                      /* Requis par html2canvas (useCORS) pour photographier
+                         un SVG servi par Supabase sans salir le canvas. */
+                      crossOrigin="anonymous"
                     />
                   </div>
                 )}
@@ -433,10 +441,14 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                       src={property.gesImageUrl}
                       alt="Étiquette GES"
                       style={{
-                        height: "160px",
-                        width: "auto",
+                        width: "100%",
+                        maxWidth: "380px",
+                        height: "auto",
                         objectFit: "contain",
                       }}
+                      /* Requis par html2canvas (useCORS) pour photographier
+                         un SVG servi par Supabase sans salir le canvas. */
+                      crossOrigin="anonymous"
                     />
                   </div>
                 )}

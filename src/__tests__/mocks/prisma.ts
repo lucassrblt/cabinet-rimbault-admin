@@ -29,6 +29,7 @@ export const mockPrismaClient = {
   propertyEnergy: {
     create: vi.fn(),
     update: vi.fn(),
+    upsert: vi.fn(),
     findUnique: vi.fn(),
   },
   propertyCopro: {

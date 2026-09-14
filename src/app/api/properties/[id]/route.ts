@@ -236,7 +236,8 @@ export async function PUT(
         (existingProperty.energy?.energyClass !== energy.energyClass ||
           existingProperty.energy?.energyValue !== energy.energyValue ||
           existingProperty.energy?.gesClass !== energy.gesClass ||
-          existingProperty.energy?.gesValue !== energy.gesValue);
+          existingProperty.energy?.gesValue !== energy.gesValue ||
+          existingProperty.energy?.finalEnergyValue !== energy.finalEnergyValue);
 
       if (shouldGenerateLabels) {
         console.log(
@@ -250,6 +251,7 @@ export async function PUT(
             energyClass: energy.energyClass,
             gesValue: energy.gesValue,
             gesClass: energy.gesClass,
+            finalEnergyValue: energy.finalEnergyValue,
           });
 
           if (labelResult.success) {

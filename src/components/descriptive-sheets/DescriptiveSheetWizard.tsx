@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import html2canvas from "html2canvas"
+import { waitForImages } from "@/lib/dom/wait-for-images"
 import jsPDF from "jspdf"
 import { DescriptiveSheetPreview } from "@/components/descriptive-sheets/DescriptiveSheetPreview"
 
@@ -453,7 +454,9 @@ export function DescriptiveSheetWizard({
 
     try {
       // Wait for React to render
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Idem : on attend le chargement effectif des étiquettes DPE/GES
+      // (SVG Supabase cross-origin) plutôt qu'un délai fixe.
+      await waitForImages(sheetRef.current)
 
       // Generate PDF from canvas
       if (sheetRef.current) {

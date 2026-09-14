@@ -115,6 +115,7 @@ export interface PropertyApiData {
   energy?: {
     energyClass?: string | null;
     energyValue?: number | null;
+    finalEnergyValue?: number | null;
     gesClass?: string | null;
     gesValue?: number | null;
     heatingType?: string | null;

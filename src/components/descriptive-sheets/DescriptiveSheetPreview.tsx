@@ -2,6 +2,12 @@
 
 import { forwardRef } from "react";
 
+import {
+  DPE_COLORS,
+  DPE_TEXT_COLORS,
+  type EnergyClass,
+} from "@/lib/energy-labels/scale";
+
 interface PropertyImage {
   id: string;
   url: string;
@@ -147,17 +153,6 @@ interface DescriptiveSheetPreviewProps {
   gesImageUrl: string | null;
 }
 
-// Couleurs DPE selon la classe énergétique
-const DPE_COLORS: Record<string, string> = {
-  A: "#319834",
-  B: "#33cc31",
-  C: "#cbfc34",
-  D: "#fbfe06",
-  E: "#fccc07",
-  F: "#fc9935",
-  G: "#fc0205",
-};
-
 // Composant d'étiquette DPE simplifiée (uniquement DPE, sans GES)
 function DPEScale({
   energyClass,
@@ -200,15 +195,12 @@ function DPEScale({
                 style={{
                   width: `${barWidth}px`,
                   height: "18px",
-                  backgroundColor: DPE_COLORS[cls],
+                  backgroundColor: DPE_COLORS[cls as EnergyClass],
                   display: "flex",
                   alignItems: "center",
                   paddingLeft: "6px",
                   fontWeight: "bold",
-                  color:
-                    cls === "A" || cls === "B" || cls === "G"
-                      ? "white"
-                      : "#333",
+                  color: DPE_TEXT_COLORS[cls as EnergyClass],
                   fontSize: "12px",
                   borderRadius: isActive ? "0" : "0 5px 5px 0",
                 }}
@@ -261,7 +253,14 @@ export const DescriptiveSheetPreview = forwardRef<
   DescriptiveSheetPreviewProps
 >(
   (
-    { property, selectedPhotos, agencyContacts, description, dpeImageUrl },
+    {
+      property,
+      selectedPhotos,
+      agencyContacts,
+      description,
+      dpeImageUrl,
+      gesImageUrl,
+    },
     ref,
   ) => {
     const formatPrice = (price: number) => {
@@ -1049,32 +1048,48 @@ export const DescriptiveSheetPreview = forwardRef<
               </p>
             </div>
 
-            {/* DPE diagram uniquement (pas de GES) - centré verticalement, plus compact */}
+            {/* Étiquettes DPE et GES - centrées verticalement, compactes */}
             <div
               style={{
                 width: "250px",
                 flexShrink: 0,
                 display: "flex",
+                // Étiquettes au format paysage : empilées, pas côte à côte.
+                flexDirection: "column",
                 justifyContent: "center",
                 alignItems: "center",
+                gap: "6px",
               }}
             >
-              {dpeImageUrl ? (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={dpeImageUrl}
-                    alt="DPE"
-                    style={{ height: "180px", width: "auto" }}
-                    crossOrigin="anonymous"
-                  />
-                </div>
+              {dpeImageUrl || gesImageUrl ? (
+                <>
+                  {dpeImageUrl && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={dpeImageUrl}
+                      alt="Étiquette DPE"
+                      style={{
+                        width: "100%",
+                        height: "auto",
+                        flexShrink: 0,
+                      }}
+                      crossOrigin="anonymous"
+                    />
+                  )}
+                  {gesImageUrl && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={gesImageUrl}
+                      alt="Étiquette GES"
+                      style={{
+                        width: "100%",
+                        height: "auto",
+                        flexShrink: 0,
+                      }}
+                      crossOrigin="anonymous"
+                    />
+                  )}
+                </>
               ) : (
                 <DPEScale energyClass={energyClass} energyValue={energyValue} />
               )}

@@ -64,6 +64,7 @@ export function apiDataToFormData(
     // Énergie
     energyClass: data.energy?.energyClass as PropertyFormData["energyClass"],
     energyValue: data.energy?.energyValue ?? 0,
+    finalEnergyValue: data.energy?.finalEnergyValue ?? null,
     gesClass: data.energy?.gesClass as PropertyFormData["gesClass"],
     gesValue: data.energy?.gesValue ?? 0,
     heatingType: data.energy?.heatingType as PropertyFormData["heatingType"],
@@ -152,6 +153,7 @@ export function formDataToApiData(data: PropertyFormData) {
     energy: {
       energyClass: data.energyClass,
       energyValue: data.energyValue,
+      finalEnergyValue: data.finalEnergyValue || null,
       gesClass: data.gesClass,
       gesValue: data.gesValue,
       heatingType: data.heatingType || null,

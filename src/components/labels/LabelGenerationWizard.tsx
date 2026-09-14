@@ -29,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import html2canvas from "html2canvas";
+import { waitForImages } from "@/lib/dom/wait-for-images";
 import jsPDF from "jspdf";
 import {
   LabelPreview,
@@ -333,9 +334,10 @@ export function LabelGenerationWizard({
       // Update preview property with new data
       setPreviewProperty(updatedProperty);
 
-      // Wait for React to render
+      // Attendre que React ait rendu ET que les images soient chargées :
+      // html2canvas laisserait sinon des cases blanches dans le PDF.
       setLoadingMessage("Rendu de l'étiquette...");
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await waitForImages(labelRef.current);
 
       // Generate PDF from canvas
       if (labelRef.current) {
