@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { DocumentType, PropertyDocument } from "@prisma/client"
+import { deleteStorageObjectByUrl } from "@/lib/supabase"
 
 /**
  * Types de documents uniques par propriété (un seul document de ce type par bien)
@@ -32,15 +33,46 @@ export interface UpsertDocumentInput {
 export async function upsertPropertyDocument(input: UpsertDocumentInput): Promise<PropertyDocument> {
   const { propertyId, type, url, name, size, mimeType, description } = input
 
-  // Pour les types uniques, on supprime l'ancien document avant d'en créer un nouveau
+  // Pour les types uniques, on supprime l'ancien document avant d'en créer un
+  // nouveau : la ligne en base ET le fichier correspondant dans le Storage,
+  // sinon les anciennes étiquettes s'accumulent indéfiniment dans le bucket.
   if (UNIQUE_DOCUMENT_TYPES.includes(type)) {
-    // Supprimer l'ancien document s'il existe
+    const previousDocuments = await prisma.propertyDocument.findMany({
+      where: {
+        propertyId,
+        type,
+      },
+      select: { id: true, url: true },
+    })
+
     await prisma.propertyDocument.deleteMany({
       where: {
         propertyId,
         type,
       },
     })
+
+    // Nettoyage du Storage après la suppression en base. On saute l'URL
+    // entrante : un appelant qui réenregistre le même fichier ne doit pas voir
+    // son objet supprimé juste après l'avoir uploadé.
+    const obsoleteUrls = [
+      ...new Set(
+        previousDocuments
+          .map((document) => document.url)
+          .filter((previousUrl) => previousUrl && previousUrl !== url)
+      ),
+    ]
+
+    for (const obsoleteUrl of obsoleteUrls) {
+      const { error } = await deleteStorageObjectByUrl(obsoleteUrl)
+      if (error) {
+        // Un fichier déjà absent ne doit pas faire échouer la régénération.
+        console.error(
+          `[documents] Suppression Storage échouée pour ${obsoleteUrl}:`,
+          error
+        )
+      }
+    }
   }
 
   // Créer le nouveau document

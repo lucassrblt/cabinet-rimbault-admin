@@ -59,6 +59,13 @@ interface PropertyEnergy {
   energyValue?: number | null;
   gesClass?: string | null;
   gesValue?: number | null;
+  /** Énergie finale affichée sur l'étiquette DPE ; absente sur les biens anciens. */
+  finalEnergyValue?: number | null;
+  /** Dépenses annuelles estimées, abonnements compris, pour la mention légale. */
+  annualEnergyCostMin?: number | null;
+  annualEnergyCostMax?: number | null;
+  dateReferenceEnergie?: string | null;
+  dpeDate?: string | null;
   labelGenerated: boolean;
   labelGeneratedAt?: string | null;
   labelColor?: string | null;
@@ -141,7 +148,8 @@ interface LabelGenerationWizardProps {
   property: Property;
   isOpen: boolean;
   onClose: () => void;
-  onComplete: () => void;
+  /** `saved` indique si le PDF a bien été enregistré sur l'annonce. */
+  onComplete: (saved: boolean) => void;
   defaultColor?: string;
 }
 
@@ -189,6 +197,11 @@ function toFlatLabelProperty(
     energyValue: overrides?.energyValue || property.energy?.energyValue,
     gesClass: overrides?.gesClass || property.energy?.gesClass,
     gesValue: overrides?.gesValue || property.energy?.gesValue,
+    annualEnergyCostMin: property.energy?.annualEnergyCostMin,
+    annualEnergyCostMax: property.energy?.annualEnergyCostMax,
+    // Repli sur la date du DPE, comme le fait déjà le site public.
+    energyPriceReferenceDate:
+      property.energy?.dateReferenceEnergie ?? property.energy?.dpeDate,
     dpeImageUrl:
       overrides?.dpeImageUrl !== undefined
         ? overrides.dpeImageUrl
@@ -263,6 +276,7 @@ export function LabelGenerationWizard({
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState(0);
+  const [uploadSucceeded, setUploadSucceeded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
 
@@ -285,6 +299,7 @@ export function LabelGenerationWizard({
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(0);
+      setUploadSucceeded(false);
       // Pre-select main image if available, otherwise take first images
       const initialPhotos = property.images
         .slice()
@@ -314,12 +329,15 @@ export function LabelGenerationWizard({
           propertyId: property.id,
           selectedPhotoIds: selectedPhotos.map((p) => p.id),
           primaryColor,
-          previewDpeUrl: getDocumentUrl(property.documents, "DPE_IMAGE"),
-          previewGesUrl: getDocumentUrl(property.documents, "GES_IMAGE"),
+          // Volontairement pas de previewDpeUrl / previewGesUrl ici : passer les
+          // URLs des documents existants ferait réutiliser les étiquettes déjà
+          // stockées, donc l'ancien rendu. Sans elles, l'API régénère les SVG
+          // avec le modèle courant avant de composer l'étiquette vitrine.
           energyValue: property.energy?.energyValue,
           energyClass: property.energy?.energyClass,
           gesValue: property.energy?.gesValue,
           gesClass: property.energy?.gesClass,
+          finalEnergyValue: property.energy?.finalEnergyValue ?? null,
         }),
       });
 
@@ -343,17 +361,27 @@ export function LabelGenerationWizard({
       if (labelRef.current) {
         setLoadingMessage("Génération du PDF...");
         const canvas = await html2canvas(labelRef.current, {
+          // Résolution inchangée : l'étiquette est imprimée et affichée en
+          // vitrine, la netteté doit rester celle d'aujourd'hui. L'allègement
+          // vient du format JPEG ci-dessous, pas d'une baisse de résolution.
           scale: 2,
           useCORS: true,
           allowTaint: true,
           backgroundColor: "#ffffff",
+          logging: false,
         });
 
-        const imgData = canvas.toDataURL("image/png");
+        // JPEG compressé plutôt que PNG : le PNG produisait des fichiers de
+        // ~8,5 Mo, sous le plafond de body du middleware Next mais assez près
+        // pour que l'upload échoue dès qu'une photo alourdissait le rendu.
+        // Le fond blanc passé à html2canvas évite tout souci d'absence de
+        // canal alpha en JPEG.
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
         const pdf = new jsPDF({
           orientation: "landscape",
           unit: "mm",
           format: "a4",
+          compress: true,
         });
 
         const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -366,15 +394,23 @@ export function LabelGenerationWizard({
 
         pdf.addImage(
           imgData,
-          "PNG",
+          "JPEG",
           imgX,
           imgY,
           imgWidth * ratio,
           imgHeight * ratio,
+          undefined,
+          "FAST",
         );
 
         // Get PDF as blob
         const pdfBlob = pdf.output("blob");
+
+        // Trace du poids réel : rend immédiatement visible toute dérive qui
+        // rapprocherait à nouveau le PDF des plafonds d'upload.
+        console.log(
+          `PDF étiquette généré : ${(pdfBlob.size / 1024 / 1024).toFixed(2)} Mo`,
+        );
 
         // Upload PDF to Supabase
         setLoadingMessage("Upload du PDF vers Supabase...");
@@ -387,17 +423,37 @@ export function LabelGenerationWizard({
           body: formData,
         });
 
-        if (!uploadResponse.ok) {
-          console.error("Failed to upload PDF to Supabase");
+        // L'échec d'enregistrement était auparavant réduit à une ligne de
+        // console, puis masqué par un message de succès affirmant à tort que le
+        // fichier était sauvegardé. L'agent repartait avec son PDF sans savoir
+        // que rien n'avait été enregistré, et sans comprendre pourquoi la
+        // mention « Étiquette générée » n'apparaissait jamais.
+        const uploadOk = uploadResponse.ok;
+
+        if (!uploadOk) {
+          const errorData = await uploadResponse.json().catch(() => ({}));
+          console.error("Failed to upload PDF label:", errorData);
         }
 
-        // Download PDF
+        // Le téléchargement local a lieu dans tous les cas : l'agent ne doit
+        // pas perdre son fichier parce que l'enregistrement a échoué.
         pdf.save(`etiquette_${property.reference}.pdf`);
 
-        toast({
-          title: "Étiquette générée avec succès",
-          description: `Le fichier "etiquette_${property.reference}.pdf" a été téléchargé et sauvegardé dans votre espace.`,
-        });
+        setUploadSucceeded(uploadOk);
+
+        if (uploadOk) {
+          toast({
+            title: "Étiquette générée avec succès",
+            description: `Le fichier "etiquette_${property.reference}.pdf" a été téléchargé et sauvegardé dans votre espace.`,
+          });
+        } else {
+          toast({
+            title: "PDF généré mais non sauvegardé",
+            description:
+              "L'étiquette a été téléchargée sur votre poste, mais son enregistrement sur l'annonce a échoué. La mention « Étiquette générée » n'apparaîtra pas. Veuillez réessayer.",
+            variant: "destructive",
+          });
+        }
 
         setCurrentStep(2);
       }
@@ -419,7 +475,7 @@ export function LabelGenerationWizard({
 
   const handleClose = () => {
     if (currentStep === 2) {
-      onComplete();
+      onComplete(uploadSucceeded);
     }
     onClose();
   };
