@@ -118,6 +118,10 @@ export interface PropertyApiData {
     finalEnergyValue?: number | null;
     gesClass?: string | null;
     gesValue?: number | null;
+    annualEnergyCostMin?: number | null;
+    annualEnergyCostMax?: number | null;
+    /** Sérialisée en chaîne ISO par l'API. */
+    dateReferenceEnergie?: string | null;
     heatingType?: string | null;
     heatingEnergy?: string | null;
   } | null;

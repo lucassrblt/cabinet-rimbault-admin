@@ -205,6 +205,109 @@ export function EnergyStep({
         </CardContent>
       </Card>
 
+      {/* Dépenses annuelles d'énergie */}
+      <Card className="shadow-card">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold">
+            Dépenses annuelles d&apos;énergie
+          </CardTitle>
+          <CardDescription>
+            Fourchette relevée sur le DPE, abonnements compris. La mention est
+            obligatoire sur toute annonce et sur l&apos;étiquette vitrine.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="annualEnergyCostMin"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Montant minimum estimé *</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        placeholder="770"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
+                        className="pr-16"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                        €/an
+                      </span>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="annualEnergyCostMax"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Montant maximum estimé *</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        placeholder="1090"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value ? Number(e.target.value) : null,
+                          )
+                        }
+                        className="pr-16"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                        €/an
+                      </span>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="dateReferenceEnergie"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Date d&apos;indexation du prix de l&apos;énergie *
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="date"
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    Indiquée sur le DPE, souvent le 1er janvier de l&apos;année
+                    du diagnostic.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Chauffage */}
       <Card className="shadow-card">
         <CardHeader className="pb-4">

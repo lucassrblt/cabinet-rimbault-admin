@@ -30,6 +30,9 @@ export const STEP_REQUIRED_FIELDS: Record<StepId, (keyof PropertyFormData)[]> =
       "finalEnergyValue",
       "gesClass",
       "gesValue",
+      "annualEnergyCostMin",
+      "annualEnergyCostMax",
+      "dateReferenceEnergie",
     ],
     images: [],
   };
