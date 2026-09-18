@@ -22,6 +22,8 @@ interface GenerateLabelsOptions {
   energyClass: string;
   gesValue: number;
   gesClass: string;
+  /** Énergie finale : facultative, la ligne est omise de l'étiquette si absente. */
+  finalEnergyValue?: number | null;
 }
 
 interface GenerateLabelsResult {
@@ -49,6 +51,7 @@ export async function autoGenerateEnergyLabels(
     energyClass,
     gesValue,
     gesClass,
+    finalEnergyValue,
   } = options;
 
   try {
@@ -79,6 +82,7 @@ export async function autoGenerateEnergyLabels(
       energyValue,
       normalizedEnergyClass as DpeClass,
       gesValue,
+      finalEnergyValue,
     );
     const dpeBuffer = Buffer.from(dpeSvg, "utf-8");
 
@@ -204,6 +208,7 @@ export async function autoGenerateEnergyLabels(
           energyClass: normalizedEnergyClass,
           gesValue,
           gesClass: normalizedGesClass,
+          ...(finalEnergyValue != null && { finalEnergyValue }),
           labelGenerated: true,
           labelGeneratedAt: new Date(),
         },
@@ -216,6 +221,7 @@ export async function autoGenerateEnergyLabels(
           energyClass: normalizedEnergyClass,
           gesValue,
           gesClass: normalizedGesClass,
+          ...(finalEnergyValue != null && { finalEnergyValue }),
           labelGenerated: true,
           labelGeneratedAt: new Date(),
         },

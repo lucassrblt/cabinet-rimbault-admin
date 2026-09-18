@@ -16,6 +16,12 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  CLASS_INDEX,
+  DPE_TAILWIND,
+  ENERGY_CLASSES,
+  GES_TAILWIND,
+} from "@/lib/energy-labels/scale";
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -306,27 +312,7 @@ function EnergyLabel({
   value?: string;
   className?: string;
 }) {
-  const classes = ["A", "B", "C", "D", "E", "F", "G"];
-  const dpeColors: Record<string, string> = {
-    A: "bg-[#319834]",
-    B: "bg-[#33a357]",
-    C: "bg-[#51b14f]",
-    D: "bg-[#f0e60d]",
-    E: "bg-[#f5b30b]",
-    F: "bg-[#ef7e22]",
-    G: "bg-[#e42016]",
-  };
-  const gesColors: Record<string, string> = {
-    A: "bg-[#f2e9f9]",
-    B: "bg-[#d9c1eb]",
-    C: "bg-[#c59dde]",
-    D: "bg-[#a974c8]",
-    E: "bg-[#8f50b4]",
-    F: "bg-[#6f2c91]",
-    G: "bg-[#4a0072]",
-  };
-
-  const colors = type === "dpe" ? dpeColors : gesColors;
+  const colors = type === "dpe" ? DPE_TAILWIND : GES_TAILWIND;
   const title =
     type === "dpe"
       ? "Consommation énergétique"
@@ -337,11 +323,11 @@ function EnergyLabel({
     <div className={cn("", className)}>
       <h4 className="text-sm font-semibold text-slate-700 mb-3">{title}</h4>
       <div className="space-y-1">
-        {classes.map((cls) => (
+        {ENERGY_CLASSES.map((cls) => (
           <div key={cls} className="flex items-center gap-2">
             <div
               className={cn(
-                "h-6 flex items-center justify-center text-xs font-bold text-white rounded-r-md transition-all",
+                "h-6 flex items-center justify-center text-xs font-bold rounded-r-md transition-all",
                 colors[cls],
                 cls === value
                   ? "px-4 min-w-[80px] ring-2 ring-slate-800 ring-offset-1"
@@ -351,7 +337,7 @@ function EnergyLabel({
                 width:
                   cls === value
                     ? "auto"
-                    : `${(classes.indexOf(cls) + 2) * 12}px`,
+                    : `${(CLASS_INDEX[cls] + 2) * 12}px`,
               }}
             >
               {cls}

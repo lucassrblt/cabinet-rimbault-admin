@@ -207,7 +207,6 @@ export const mockPropertyEnergy = {
   dpeDate: new Date('2023-06-15'),
   dateReferenceEnergie: new Date('2023-06-15'),
   dpeEstimation: false,
-  annualEnergyCost: 1200,
   annualEnergyCostMin: 1000,
   annualEnergyCostMax: 1400,
   dpeImageUrl: null,

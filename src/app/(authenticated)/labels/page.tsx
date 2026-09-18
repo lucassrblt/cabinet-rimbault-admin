@@ -224,11 +224,16 @@ export default function LabelsPage() {
     setShowWizard(true);
   };
 
-  const handleWizardComplete = () => {
-    toast({
-      title: "Étiquette sauvegardée",
-      description: `L'étiquette pour "${wizardProperty?.reference}" a été enregistrée avec succès.`,
-    });
+  const handleWizardComplete = (saved: boolean) => {
+    // Ce message ne doit s'afficher que si l'enregistrement a réellement eu
+    // lieu : il était auparavant inconditionnel et contredisait l'avertissement
+    // affiché par l'assistant quand l'upload avait échoué.
+    if (saved) {
+      toast({
+        title: "Étiquette sauvegardée",
+        description: `L'étiquette pour "${wizardProperty?.reference}" a été enregistrée avec succès.`,
+      });
+    }
     fetchProperties();
     setShowWizard(false);
     setWizardProperty(null);

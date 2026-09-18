@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 
 // Import mocks
 import { mockPrismaClient, resetPrismaMocks } from '../mocks/prisma'
@@ -6,6 +6,7 @@ import { setAuthenticated, resetAuthMocks } from '../mocks/auth'
 import {
   mockUploadToStorage,
   setUploadSuccess,
+  setUploadFailure,
   resetSupabaseMocks,
 } from '../mocks/supabase'
 import {
@@ -17,16 +18,11 @@ import {
 // Import the route handler
 import { POST } from '@/app/api/labels/generate/route'
 
-// Mock global fetch for external API calls
-const mockFetch = vi.fn()
-global.fetch = mockFetch
-
 describe('/api/labels/generate', () => {
   beforeEach(() => {
     resetPrismaMocks()
     resetAuthMocks()
     resetSupabaseMocks()
-    mockFetch.mockReset()
   })
 
   describe('POST /api/labels/generate', () => {
@@ -140,7 +136,7 @@ describe('/api/labels/generate', () => {
         characteristics: null,
       })
 
-      mockPrismaClient.propertyEnergy.update.mockResolvedValue(mockPropertyEnergy)
+      mockPrismaClient.propertyEnergy.upsert.mockResolvedValue(mockPropertyEnergy)
 
       mockPrismaClient.property.findUnique.mockResolvedValueOnce({
         ...mockPropertyBase,
@@ -187,7 +183,7 @@ describe('/api/labels/generate', () => {
         characteristics: null,
       })
 
-      mockPrismaClient.propertyEnergy.update.mockResolvedValue(mockPropertyEnergy)
+      mockPrismaClient.propertyEnergy.upsert.mockResolvedValue(mockPropertyEnergy)
 
       mockPrismaClient.property.findUnique.mockResolvedValueOnce({
         ...mockPropertyBase,
@@ -214,9 +210,9 @@ describe('/api/labels/generate', () => {
       })
       await POST(request)
 
-      expect(mockPrismaClient.propertyEnergy.update).toHaveBeenCalledWith(
+      expect(mockPrismaClient.propertyEnergy.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({
+          update: expect.objectContaining({
             energyValue: 150,
             energyClass: 'C',
             gesValue: 25,
@@ -226,7 +222,7 @@ describe('/api/labels/generate', () => {
       )
     })
 
-    it('devrait fetcher les images DPE/GES si pas de preview URLs', async () => {
+    it('devrait générer les étiquettes localement si pas de preview URLs', async () => {
       setAuthenticated(true)
 
       mockPrismaClient.property.findUnique.mockResolvedValueOnce({
@@ -239,15 +235,13 @@ describe('/api/labels/generate', () => {
         characteristics: null,
       })
 
-      // Mock external API responses
-      mockFetch.mockResolvedValue({
-        ok: true,
-        arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
-      })
+      setUploadSuccess('https://storage.example.com/REF-001_dpe.svg')
 
-      setUploadSuccess('https://storage.example.com/uploaded.png')
-
+      mockPrismaClient.propertyEnergy.findUnique.mockResolvedValue(mockPropertyEnergy)
       mockPrismaClient.propertyEnergy.update.mockResolvedValue(mockPropertyEnergy)
+      mockPrismaClient.propertyEnergy.upsert.mockResolvedValue(mockPropertyEnergy)
+      mockPrismaClient.propertyDocument.findFirst.mockResolvedValue(null)
+      mockPrismaClient.propertyDocument.create.mockResolvedValue({ id: 'doc-1' })
 
       mockPrismaClient.property.findUnique.mockResolvedValueOnce({
         ...mockPropertyBase,
@@ -270,11 +264,16 @@ describe('/api/labels/generate', () => {
       await response.json()
 
       expect(response.status).toBe(200)
-      expect(mockFetch).toHaveBeenCalledTimes(2) // DPE + GES
+      // Aucun appel réseau sortant : les SVG sont produits localement puis
+      // uploadés (DPE + GES).
       expect(mockUploadToStorage).toHaveBeenCalledTimes(2)
+      const [[dpeBucket, dpePath, , dpeMime]] = mockUploadToStorage.mock.calls
+      expect(dpeBucket).toBe('property-files')
+      expect(dpePath).toMatch(/REF-001\/energy\/REF-001_dpe_\d+\.svg$/)
+      expect(dpeMime).toBe('image/svg+xml')
     })
 
-    it('devrait retourner 500 si récupération images DPE/GES échoue', async () => {
+    it('devrait retourner 500 si l\'upload des étiquettes échoue', async () => {
       setAuthenticated(true)
 
       mockPrismaClient.property.findUnique.mockResolvedValue({
@@ -287,11 +286,7 @@ describe('/api/labels/generate', () => {
         characteristics: null,
       })
 
-      // Mock failed external API response
-      mockFetch.mockResolvedValue({
-        ok: false,
-        statusText: 'Not Found',
-      })
+      setUploadFailure(new Error('Storage indisponible'))
 
       const request = new Request('http://localhost:3000/api/labels/generate', {
         method: 'POST',
@@ -305,10 +300,10 @@ describe('/api/labels/generate', () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toBe('Impossible de récupérer les images DPE/GES')
+      expect(data.error).toContain("l'upload de l'image DPE")
     })
 
-    it('devrait créer PropertyEnergy si elle n\'existe pas', async () => {
+    it('devrait upserter PropertyEnergy si elle n\'existe pas', async () => {
       setAuthenticated(true)
 
       mockPrismaClient.property.findUnique.mockResolvedValueOnce({
@@ -320,7 +315,7 @@ describe('/api/labels/generate', () => {
         characteristics: null,
       })
 
-      mockPrismaClient.propertyEnergy.create.mockResolvedValue(mockPropertyEnergy)
+      mockPrismaClient.propertyEnergy.upsert.mockResolvedValue(mockPropertyEnergy)
 
       mockPrismaClient.property.findUnique.mockResolvedValueOnce({
         ...mockPropertyBase,
@@ -347,7 +342,19 @@ describe('/api/labels/generate', () => {
       })
       await POST(request)
 
-      expect(mockPrismaClient.propertyEnergy.create).toHaveBeenCalled()
+      expect(mockPrismaClient.propertyEnergy.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { propertyId: 'prop-123' },
+          create: expect.objectContaining({
+            propertyId: 'prop-123',
+            energyValue: 180,
+            energyClass: 'D',
+            gesValue: 35,
+            gesClass: 'E',
+            labelGenerated: true,
+          }),
+        })
+      )
     })
 
     it('devrait gérer le selectedImageIndex pour rétrocompatibilité', async () => {
@@ -362,7 +369,7 @@ describe('/api/labels/generate', () => {
         characteristics: null,
       })
 
-      mockPrismaClient.propertyEnergy.update.mockResolvedValue(mockPropertyEnergy)
+      mockPrismaClient.propertyEnergy.upsert.mockResolvedValue(mockPropertyEnergy)
 
       mockPrismaClient.property.findUnique.mockResolvedValueOnce({
         ...mockPropertyBase,

@@ -24,7 +24,16 @@ export const STEP_REQUIRED_FIELDS: Record<StepId, (keyof PropertyFormData)[]> =
       "city",
     ],
     details: ["surface", "rooms"],
-    dpe: ["energyClass", "energyValue", "gesClass", "gesValue"],
+    dpe: [
+      "energyClass",
+      "energyValue",
+      "finalEnergyValue",
+      "gesClass",
+      "gesValue",
+      "annualEnergyCostMin",
+      "annualEnergyCostMax",
+      "dateReferenceEnergie",
+    ],
     images: [],
   };
 

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { uploadToStorage, BUCKETS } from "@/lib/supabase";
 import { requireAuth } from "@/lib/api-auth";
 import { EnergyClass } from "@prisma/client";
 import { upsertPropertyDocument } from "@/lib/documents";
+import { autoGenerateEnergyLabels } from "@/lib/energy-labels";
 
 interface GenerateLabelRequest {
   propertyId: string;
@@ -18,56 +18,7 @@ interface GenerateLabelRequest {
   energyClass?: EnergyClass;
   gesValue?: number;
   gesClass?: EnergyClass;
-}
-
-/**
- * Fetch DPE or GES image from outils.immo API
- */
-async function fetchEnergyImage(
-  type: "dpe" | "ges",
-  value: number,
-  letter: string,
-): Promise<ArrayBuffer | null> {
-  const modele = "2021";
-  const apiUrl = `https://www.outils.immo/outils-immo.php?type=${type}&modele=${modele}&valeur=${value}&lettre=${letter.toLowerCase()}`;
-
-  try {
-    // Créer un objet Headers explicite pour s'assurer que les headers sont bien passés
-    const headers = new Headers();
-    headers.set(
-      "User-Agent",
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    );
-    headers.set("Referer", "https://www.outils.immo/");
-    headers.set(
-      "Accept",
-      "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-    );
-    headers.set("Accept-Language", "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7");
-    headers.set("Origin", "https://www.outils.immo");
-
-    const response = await fetch(apiUrl, {
-      method: "GET",
-      headers: headers,
-      // Désactiver le cache pour éviter les problèmes
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => response.statusText);
-      console.error(`Failed to fetch ${type} image:`, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        body: errorText,
-      });
-      return null;
-    }
-    return await response.arrayBuffer();
-  } catch (error) {
-    console.error(`Error fetching ${type} image:`, error);
-    return null;
-  }
+  finalEnergyValue?: number | null;
 }
 
 export async function POST(request: Request) {
@@ -90,6 +41,7 @@ export async function POST(request: Request) {
       energyClass: customEnergyClass,
       gesValue: customGesValue,
       gesClass: customGesClass,
+      finalEnergyValue: customFinalEnergyValue,
     } = body;
 
     // Fetch property with images and energy data
@@ -114,20 +66,22 @@ export async function POST(request: Request) {
     }
 
     // Use custom values if provided, otherwise use property energy values
-    const finalEnergyValue = customEnergyValue ?? property.energy?.energyValue;
-    const finalEnergyClass = customEnergyClass ?? property.energy?.energyClass;
-    const finalGesValue = customGesValue ?? property.energy?.gesValue;
-    const finalGesClass = customGesClass ?? property.energy?.gesClass;
+    const resolvedEnergyValue = customEnergyValue ?? property.energy?.energyValue;
+    const resolvedEnergyClass = customEnergyClass ?? property.energy?.energyClass;
+    const resolvedGesValue = customGesValue ?? property.energy?.gesValue;
+    const resolvedGesClass = customGesClass ?? property.energy?.gesClass;
+    const resolvedFinalEnergyValue =
+      customFinalEnergyValue ?? property.energy?.finalEnergyValue ?? null;
 
     // Validate DPE and GES data
-    if (!finalEnergyClass || !finalEnergyValue) {
+    if (!resolvedEnergyClass || !resolvedEnergyValue) {
       return NextResponse.json(
         { error: "Les données DPE sont requises pour générer l'étiquette" },
         { status: 400 },
       );
     }
 
-    if (!finalGesClass || !finalGesValue) {
+    if (!resolvedGesClass || !resolvedGesValue) {
       return NextResponse.json(
         { error: "Les données GES sont requises pour générer l'étiquette" },
         { status: 400 },
@@ -137,57 +91,31 @@ export async function POST(request: Request) {
     let dpeUrl = previewDpeUrl;
     let gesUrl = previewGesUrl;
 
-    // If no preview URLs provided, fetch fresh images
+    // Pas d'étiquette existante : on la génère localement en SVG et on
+    // l'enregistre (upload + PropertyDocument) via le pipeline partagé.
     if (!dpeUrl || !gesUrl) {
-      // Fetch DPE image
-      const dpeImageBuffer = await fetchEnergyImage(
-        "dpe",
-        finalEnergyValue,
-        finalEnergyClass,
-      );
+      const generated = await autoGenerateEnergyLabels({
+        propertyId,
+        reference: property.reference,
+        energyValue: resolvedEnergyValue,
+        energyClass: resolvedEnergyClass,
+        gesValue: resolvedGesValue,
+        gesClass: resolvedGesClass,
+        finalEnergyValue: resolvedFinalEnergyValue,
+      });
 
-      // Fetch GES image
-      const gesImageBuffer = await fetchEnergyImage(
-        "ges",
-        finalGesValue,
-        finalGesClass,
-      );
-
-      if (!dpeImageBuffer || !gesImageBuffer) {
+      if (!generated.success) {
         return NextResponse.json(
-          { error: "Impossible de récupérer les images DPE/GES" },
+          {
+            error:
+              generated.error ?? "Impossible de générer les étiquettes DPE/GES",
+          },
           { status: 500 },
         );
       }
 
-      // Upload DPE image to PROPERTY_FILES bucket in energy folder
-      const timestamp = Date.now();
-      const dpeFileName = `${property.reference}/energy/${property.reference}_dpe_${timestamp}.png`;
-      const { url: uploadedDpeUrl, error: dpeError } = await uploadToStorage(
-        BUCKETS.PROPERTY_FILES,
-        dpeFileName,
-        dpeImageBuffer,
-        "image/png",
-      );
-
-      if (dpeError) {
-        console.error("Error uploading DPE image:", dpeError);
-      }
-      dpeUrl = uploadedDpeUrl ?? undefined;
-
-      // Upload GES image to PROPERTY_FILES bucket in energy folder
-      const gesFileName = `${property.reference}/energy/${property.reference}_ges_${timestamp}.png`;
-      const { url: uploadedGesUrl, error: gesError } = await uploadToStorage(
-        BUCKETS.PROPERTY_FILES,
-        gesFileName,
-        gesImageBuffer,
-        "image/png",
-      );
-
-      if (gesError) {
-        console.error("Error uploading GES image:", gesError);
-      }
-      gesUrl = uploadedGesUrl ?? undefined;
+      dpeUrl = generated.dpeImageUrl;
+      gesUrl = generated.gesImageUrl;
     }
 
     // Get selected photos
@@ -214,57 +142,50 @@ export async function POST(request: Request) {
       }
     }
 
-    // Store DPE/GES images in PropertyDocument table
-    if (dpeUrl) {
+    // Les étiquettes fraîchement générées sont déjà enregistrées par
+    // autoGenerateEnergyLabels ; on n'enregistre ici que les URLs d'aperçu
+    // fournies par l'appelant.
+    if (previewDpeUrl && dpeUrl) {
       await upsertPropertyDocument({
         propertyId,
         type: "DPE_IMAGE",
         url: dpeUrl,
-        name: `${property.reference}_dpe.png`,
-        mimeType: "image/png",
-        description: `Étiquette DPE - Classe ${finalEnergyClass} (${finalEnergyValue} kWh/m²/an)`,
+        name: `${property.reference}_dpe.svg`,
+        mimeType: "image/svg+xml",
+        description: `Étiquette DPE - Classe ${resolvedEnergyClass} (${resolvedEnergyValue} kWh/m²/an)`,
       });
     }
 
-    if (gesUrl) {
+    if (previewGesUrl && gesUrl) {
       await upsertPropertyDocument({
         propertyId,
         type: "GES_IMAGE",
         url: gesUrl,
-        name: `${property.reference}_ges.png`,
-        mimeType: "image/png",
-        description: `Étiquette GES - Classe ${finalGesClass} (${finalGesValue} kg CO₂/m²/an)`,
+        name: `${property.reference}_ges.svg`,
+        mimeType: "image/svg+xml",
+        description: `Étiquette GES - Classe ${resolvedGesClass} (${resolvedGesValue} kg CO₂/m²/an)`,
       });
     }
 
-    // Update property energy data (metadata only, not URLs)
-    if (property.energy) {
-      await prisma.propertyEnergy.update({
-        where: { propertyId: propertyId },
-        data: {
-          energyValue: finalEnergyValue,
-          energyClass: finalEnergyClass,
-          gesValue: finalGesValue,
-          gesClass: finalGesClass,
-          labelGenerated: true,
-          labelGeneratedAt: new Date(),
-          labelColor: primaryColor,
-        },
-      });
-    } else {
-      await prisma.propertyEnergy.create({
-        data: {
-          propertyId: propertyId,
-          energyValue: finalEnergyValue,
-          energyClass: finalEnergyClass,
-          gesValue: finalGesValue,
-          gesClass: finalGesClass,
-          labelGenerated: true,
-          labelGeneratedAt: new Date(),
-          labelColor: primaryColor,
-        },
-      });
-    }
+    // Update property energy data (metadata only, not URLs).
+    // Upsert plutôt que update/create : autoGenerateEnergyLabels a pu créer
+    // la ligne entre-temps, ce qui ferait échouer un create.
+    const energyMetadata = {
+      energyValue: resolvedEnergyValue,
+      energyClass: resolvedEnergyClass,
+      gesValue: resolvedGesValue,
+      gesClass: resolvedGesClass,
+      finalEnergyValue: resolvedFinalEnergyValue,
+      labelGenerated: true,
+      labelGeneratedAt: new Date(),
+      labelColor: primaryColor,
+    };
+
+    await prisma.propertyEnergy.upsert({
+      where: { propertyId: propertyId },
+      update: energyMetadata,
+      create: { propertyId: propertyId, ...energyMetadata },
+    });
 
     // Fetch updated property with documents
     const updatedProperty = await prisma.property.findUnique({

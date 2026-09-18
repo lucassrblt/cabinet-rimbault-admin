@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import html2canvas from "html2canvas"
+import { waitForImages } from "@/lib/dom/wait-for-images"
 import jsPDF from "jspdf"
 import { DescriptiveSheetPreview } from "@/components/descriptive-sheets/DescriptiveSheetPreview"
 
@@ -72,6 +73,12 @@ interface PropertyEnergy {
   energyValue?: number | null
   gesClass?: string | null
   gesValue?: number | null
+  /** Dépenses annuelles estimées, abonnements compris (mention légale). */
+  annualEnergyCostMin?: number | null
+  annualEnergyCostMax?: number | null
+  /** Date d'indexation des prix, sérialisée en ISO par l'API. */
+  dateReferenceEnergie?: string | null
+  dpeDate?: string | null
   labelGenerated: boolean
   labelGeneratedAt?: string | null
   labelColor?: string | null
@@ -453,7 +460,9 @@ export function DescriptiveSheetWizard({
 
     try {
       // Wait for React to render
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Idem : on attend le chargement effectif des étiquettes DPE/GES
+      // (SVG Supabase cross-origin) plutôt qu'un délai fixe.
+      await waitForImages(sheetRef.current)
 
       // Generate PDF from canvas
       if (sheetRef.current) {

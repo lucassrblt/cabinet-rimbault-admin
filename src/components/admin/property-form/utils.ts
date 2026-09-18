@@ -64,8 +64,15 @@ export function apiDataToFormData(
     // Énergie
     energyClass: data.energy?.energyClass as PropertyFormData["energyClass"],
     energyValue: data.energy?.energyValue ?? 0,
+    finalEnergyValue: data.energy?.finalEnergyValue ?? null,
     gesClass: data.energy?.gesClass as PropertyFormData["gesClass"],
     gesValue: data.energy?.gesValue ?? 0,
+    annualEnergyCostMin: data.energy?.annualEnergyCostMin ?? undefined,
+    annualEnergyCostMax: data.energy?.annualEnergyCostMax ?? undefined,
+    // Un champ de saisie de date attend AAAA-MM-JJ, l'API renvoie de l'ISO.
+    dateReferenceEnergie: data.energy?.dateReferenceEnergie
+      ? String(data.energy.dateReferenceEnergie).slice(0, 10)
+      : "",
     heatingType: data.energy?.heatingType as PropertyFormData["heatingType"],
     heatingEnergy: data.energy
       ?.heatingEnergy as PropertyFormData["heatingEnergy"],
@@ -152,8 +159,15 @@ export function formDataToApiData(data: PropertyFormData) {
     energy: {
       energyClass: data.energyClass,
       energyValue: data.energyValue,
+      finalEnergyValue: data.finalEnergyValue || null,
       gesClass: data.gesClass,
       gesValue: data.gesValue,
+      // `?? null` et non `|| null` : un montant nul reste un montant saisi.
+      annualEnergyCostMin: data.annualEnergyCostMin ?? null,
+      annualEnergyCostMax: data.annualEnergyCostMax ?? null,
+      dateReferenceEnergie: data.dateReferenceEnergie
+        ? new Date(data.dateReferenceEnergie).toISOString()
+        : null,
       heatingType: data.heatingType || null,
       heatingEnergy: data.heatingEnergy || null,
       // Note: dpeImageUrl et gesImageUrl sont maintenant gérés via PropertyDocument

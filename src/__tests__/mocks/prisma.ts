@@ -29,6 +29,7 @@ export const mockPrismaClient = {
   propertyEnergy: {
     create: vi.fn(),
     update: vi.fn(),
+    upsert: vi.fn(),
     findUnique: vi.fn(),
   },
   propertyCopro: {
@@ -113,4 +114,8 @@ export function resetPrismaMocks() {
   })
   // Reset $transaction to default behavior
   mockPrismaClient.$transaction.mockImplementation((callback) => callback(mockPrismaClient))
+
+  // Prisma renvoie toujours un tableau pour findMany : sans ce défaut, tout code
+  // qui itère le résultat casse dès qu'un test ne mocke pas explicitement l'appel.
+  mockPrismaClient.propertyDocument.findMany.mockResolvedValue([])
 }

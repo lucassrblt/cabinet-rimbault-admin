@@ -47,12 +47,8 @@ export async function testSupabaseConnection(): Promise<void> {
 
 // Bucket names - IMPORTANT: ces noms doivent correspondre aux buckets créés dans Supabase
 export const BUCKETS = {
-  LABELS: "labels",
-  FILES: "files", // Pour stocker les images DPE/GES générées (déprécié, utiliser PROPERTY_FILES)
-  DPE_IMAGES: "dpe-images",
-  PROPERTY_IMAGES: "property-images", // Déprécié, utiliser PROPERTY_FILES
-  PROPERTY_FILES: "property-files", // Bucket unique pour les images et fichiers DPE/GES
-  DESCRIPTIVE_SHEETS: "descriptive_sheets", // Pour les fiches descriptives PDF
+  PROPERTY_FILES: "property-files", // Bucket unique : images, fichiers DPE/GES, PDFs
+  PROPERTY_IMAGES: "property-images", // Déprécié : conservé pour résoudre les anciennes URLs
 } as const
 
 /**
@@ -124,6 +120,45 @@ export async function deleteFromStorage(
   } catch (error) {
     return { success: false, error: error as Error }
   }
+}
+
+/**
+ * Déduit le bucket et le chemin d'un objet à partir de son URL publique.
+ * Retourne null si l'URL ne correspond à aucun bucket connu (URL externe,
+ * chaîne vide, ancienne URL d'un autre hébergeur).
+ */
+export function parseStorageUrl(
+  url: string
+): { bucket: string; path: string } | null {
+  if (!url) return null
+
+  for (const bucket of [BUCKETS.PROPERTY_FILES, BUCKETS.PROPERTY_IMAGES]) {
+    const marker = `${bucket}/`
+    const index = url.indexOf(marker)
+    if (index === -1) continue
+
+    const path = url.slice(index + marker.length).split("?")[0]
+    if (!path) continue
+
+    return { bucket, path: decodeURIComponent(path) }
+  }
+
+  return null
+}
+
+/**
+ * Supprime un objet du Storage à partir de son URL publique.
+ * Sans effet si l'URL ne pointe pas vers un bucket connu.
+ */
+export async function deleteStorageObjectByUrl(
+  url: string
+): Promise<{ success: boolean; error: Error | null }> {
+  const parsed = parseStorageUrl(url)
+  if (!parsed) {
+    return { success: false, error: null }
+  }
+
+  return deleteFromStorage(parsed.bucket, parsed.path)
 }
 
 /**

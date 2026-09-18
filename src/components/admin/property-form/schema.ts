@@ -128,6 +128,14 @@ export const propertyFormSchema = z.object({
     .number()
     .int()
     .positive("La consommation énergétique doit être positive"),
+  // Énergie finale : facultative. Sans elle, l'étiquette DPE se limite à
+  // l'énergie primaire et aux émissions.
+  finalEnergyValue: z.coerce
+    .number()
+    .int()
+    .positive("La consommation en énergie finale doit être positive")
+    .optional()
+    .nullable(),
   gesClass: z.enum(["A", "B", "C", "D", "E", "F", "G", "VIERGE"], {
     required_error: "La classe GES est obligatoire",
   }),
@@ -135,6 +143,24 @@ export const propertyFormSchema = z.object({
     .number()
     .int()
     .positive("Les émissions GES doivent être positives"),
+  // Dépenses annuelles d'énergie estimées, abonnements compris, relevées sur le
+  // DPE. Obligatoires au même titre que la consommation et les émissions : la
+  // mention correspondante doit figurer sur toute annonce depuis le
+  // 1er janvier 2022 (CCH, art. R126-23). Montants en euros, donc pas d'entier.
+  annualEnergyCostMin: z.coerce
+    .number()
+    .positive("Le montant minimum estimé doit être positif"),
+  annualEnergyCostMax: z.coerce
+    .number()
+    .positive("Le montant maximum estimé doit être positif"),
+  // Date d'indexation des prix de l'énergie, au format attendu par un champ de
+  // saisie de date. Convertie en date complète à l'envoi.
+  dateReferenceEnergie: z
+    .string()
+    .regex(
+      /^\d{4}-\d{2}-\d{2}$/,
+      "La date d'indexation des prix de l'énergie est obligatoire",
+    ),
   heatingType: z
     .enum(["INDIVIDUEL", "COLLECTIF", "MIXTE"], {
       invalid_type_error: "Le type de chauffage est invalide",
@@ -187,4 +213,18 @@ export const propertyFormSchema = z.object({
   isPublished: z.boolean().default(false),
   isFeatured: z.boolean().default(false),
   isExclusive: z.boolean().default(false),
+}).superRefine((data, ctx) => {
+  // Contrainte croisée : une fourchette dont le minimum dépasse le maximum
+  // produirait une mention légale absurde sur l'affiche vitrine.
+  if (
+    data.annualEnergyCostMin != null &&
+    data.annualEnergyCostMax != null &&
+    data.annualEnergyCostMin > data.annualEnergyCostMax
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["annualEnergyCostMin"],
+      message: "Le montant minimum ne peut pas dépasser le montant maximum",
+    });
+  }
 });

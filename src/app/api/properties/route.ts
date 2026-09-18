@@ -204,6 +204,7 @@ export async function POST(request: Request) {
             energyClass: energy.energyClass,
             gesValue: energy.gesValue,
             gesClass: energy.gesClass,
+            finalEnergyValue: energy.finalEnergyValue,
           });
 
           if (labelResult.success) {

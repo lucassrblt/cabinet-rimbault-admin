@@ -4,6 +4,7 @@ import { vi } from 'vitest'
 export const mockUploadToStorage = vi.fn()
 export const mockDeleteFromStorage = vi.fn()
 export const mockDeleteFolderFromStorage = vi.fn()
+export const mockDeleteStorageObjectByUrl = vi.fn()
 export const mockGetPublicUrl = vi.fn()
 
 // Mock supabaseAdmin.storage.from().createSignedUploadUrl() / getPublicUrl()
@@ -36,14 +37,23 @@ vi.mock('@/lib/supabase', () => ({
   uploadToStorage: (...args: Parameters<typeof mockUploadToStorage>) => mockUploadToStorage(...args),
   deleteFromStorage: (...args: Parameters<typeof mockDeleteFromStorage>) => mockDeleteFromStorage(...args),
   deleteFolderFromStorage: (...args: Parameters<typeof mockDeleteFolderFromStorage>) => mockDeleteFolderFromStorage(...args),
+  deleteStorageObjectByUrl: (...args: Parameters<typeof mockDeleteStorageObjectByUrl>) =>
+    mockDeleteStorageObjectByUrl(...args),
+  parseStorageUrl: (url: string) => {
+    for (const bucket of ['property-files', 'property-images']) {
+      const marker = `${bucket}/`
+      const index = url?.indexOf(marker) ?? -1
+      if (index === -1) continue
+      const path = url.slice(index + marker.length).split('?')[0]
+      if (!path) continue
+      return { bucket, path }
+    }
+    return null
+  },
   getPublicUrl: (...args: Parameters<typeof mockGetPublicUrl>) => mockGetPublicUrl(...args),
   BUCKETS: {
-    LABELS: 'labels',
-    FILES: 'files',
-    DPE_IMAGES: 'dpe-images',
-    PROPERTY_IMAGES: 'property-images',
     PROPERTY_FILES: 'property-files',
-    DESCRIPTIVE_SHEETS: 'descriptive_sheets',
+    PROPERTY_IMAGES: 'property-images',
   },
   testSupabaseConnection: vi.fn().mockResolvedValue(undefined),
 }))
@@ -78,7 +88,19 @@ export function resetSupabaseMocks() {
   mockUploadToStorage.mockReset()
   mockDeleteFromStorage.mockReset()
   mockDeleteFolderFromStorage.mockReset()
+  mockDeleteStorageObjectByUrl.mockReset()
+  mockDeleteStorageObjectByUrl.mockResolvedValue({ success: true, error: null })
   mockGetPublicUrl.mockReset()
   mockCreateSignedUploadUrl.mockReset()
   mockAdminGetPublicUrl.mockReset()
+}
+
+// Helper : suppression Storage réussie (comportement par défaut attendu)
+export function setStorageDeleteSuccess() {
+  mockDeleteStorageObjectByUrl.mockResolvedValue({ success: true, error: null })
+}
+
+// Helper : suppression Storage en échec (ne doit pas casser l'appelant)
+export function setStorageDeleteFailure(error: Error = new Error('Delete failed')) {
+  mockDeleteStorageObjectByUrl.mockResolvedValue({ success: false, error })
 }

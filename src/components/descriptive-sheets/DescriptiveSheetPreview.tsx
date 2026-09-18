@@ -2,6 +2,13 @@
 
 import { forwardRef } from "react";
 
+import {
+  DPE_COLORS,
+  DPE_TEXT_COLORS,
+  type EnergyClass,
+} from "@/lib/energy-labels/scale";
+import { buildEnergyCostNotice } from "@/lib/energy-cost-notice";
+
 interface PropertyImage {
   id: string;
   url: string;
@@ -93,6 +100,12 @@ interface PropertyEnergy {
   energyValue?: number | null;
   gesClass?: string | null;
   gesValue?: number | null;
+  /** Dépenses annuelles estimées, abonnements compris (mention légale). */
+  annualEnergyCostMin?: number | null;
+  annualEnergyCostMax?: number | null;
+  /** Date d'indexation des prix, sérialisée en ISO par l'API. */
+  dateReferenceEnergie?: string | null;
+  dpeDate?: string | null;
   hasRadiator?: boolean;
   hasFloorHeating?: boolean;
   hasFireplace?: boolean;
@@ -147,17 +160,6 @@ interface DescriptiveSheetPreviewProps {
   gesImageUrl: string | null;
 }
 
-// Couleurs DPE selon la classe énergétique
-const DPE_COLORS: Record<string, string> = {
-  A: "#319834",
-  B: "#33cc31",
-  C: "#cbfc34",
-  D: "#fbfe06",
-  E: "#fccc07",
-  F: "#fc9935",
-  G: "#fc0205",
-};
-
 // Composant d'étiquette DPE simplifiée (uniquement DPE, sans GES)
 function DPEScale({
   energyClass,
@@ -200,15 +202,12 @@ function DPEScale({
                 style={{
                   width: `${barWidth}px`,
                   height: "18px",
-                  backgroundColor: DPE_COLORS[cls],
+                  backgroundColor: DPE_COLORS[cls as EnergyClass],
                   display: "flex",
                   alignItems: "center",
                   paddingLeft: "6px",
                   fontWeight: "bold",
-                  color:
-                    cls === "A" || cls === "B" || cls === "G"
-                      ? "white"
-                      : "#333",
+                  color: DPE_TEXT_COLORS[cls as EnergyClass],
                   fontSize: "12px",
                   borderRadius: isActive ? "0" : "0 5px 5px 0",
                 }}
@@ -261,7 +260,14 @@ export const DescriptiveSheetPreview = forwardRef<
   DescriptiveSheetPreviewProps
 >(
   (
-    { property, selectedPhotos, agencyContacts, description, dpeImageUrl },
+    {
+      property,
+      selectedPhotos,
+      agencyContacts,
+      description,
+      dpeImageUrl,
+      gesImageUrl,
+    },
     ref,
   ) => {
     const formatPrice = (price: number) => {
@@ -419,6 +425,23 @@ export const DescriptiveSheetPreview = forwardRef<
       };
       return exposure ? labels[exposure] || exposure : null;
     };
+
+    /**
+     * Plafond de hauteur d'une étiquette énergie, en pixels.
+     * Les SVG font 750x560 : dans cette colonne de 250px, sans plafond, chaque
+     * étiquette occuperait 187px, soit 379px à deux. La page A4 ne le supporte
+     * pas et s'imprime alors rétrécie, bordée de bandes blanches.
+     */
+    const LABEL_MAX_HEIGHT = 140;
+
+    // Mention obligatoire des dépenses annuelles d'énergie (CCH, art. R126-23),
+    // composée par le module partagé avec l'affiche vitrine.
+    const energyCostNotice = buildEnergyCostNotice({
+      annualEnergyCostMin: property.energy?.annualEnergyCostMin,
+      annualEnergyCostMax: property.energy?.annualEnergyCostMax,
+      referenceDate:
+        property.energy?.dateReferenceEnergie ?? property.energy?.dpeDate,
+    });
 
     // Générer les informations pertinentes du bien pour le tableau
     interface PropertyInfoItem {
@@ -1049,32 +1072,60 @@ export const DescriptiveSheetPreview = forwardRef<
               </p>
             </div>
 
-            {/* DPE diagram uniquement (pas de GES) - centré verticalement, plus compact */}
+            {/* Étiquettes DPE et GES - centrées verticalement, compactes */}
             <div
               style={{
                 width: "250px",
                 flexShrink: 0,
                 display: "flex",
+                // Étiquettes au format paysage : empilées, pas côte à côte.
+                flexDirection: "column",
                 justifyContent: "center",
                 alignItems: "center",
+                gap: "6px",
               }}
             >
-              {dpeImageUrl ? (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={dpeImageUrl}
-                    alt="DPE"
-                    style={{ height: "180px", width: "auto" }}
-                    crossOrigin="anonymous"
-                  />
-                </div>
+              {dpeImageUrl || gesImageUrl ? (
+                <>
+                  {dpeImageUrl && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={dpeImageUrl}
+                      alt="Étiquette DPE"
+                      style={{
+                        width: "100%",
+                        // Plafond de hauteur : sans lui, deux étiquettes au
+                        // format paysage occupent 379px dans cette colonne,
+                        // contre 180px pour l'ancienne étiquette carrée, et la
+                        // page dépasse l'A4, ce qui la fait imprimer rétrécie.
+                        maxHeight: `${LABEL_MAX_HEIGHT}px`,
+                        height: "auto",
+                        objectFit: "contain",
+                        flexShrink: 0,
+                      }}
+                      crossOrigin="anonymous"
+                    />
+                  )}
+                  {gesImageUrl && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={gesImageUrl}
+                      alt="Étiquette GES"
+                      style={{
+                        width: "100%",
+                        // Plafond de hauteur : sans lui, deux étiquettes au
+                        // format paysage occupent 379px dans cette colonne,
+                        // contre 180px pour l'ancienne étiquette carrée, et la
+                        // page dépasse l'A4, ce qui la fait imprimer rétrécie.
+                        maxHeight: `${LABEL_MAX_HEIGHT}px`,
+                        height: "auto",
+                        objectFit: "contain",
+                        flexShrink: 0,
+                      }}
+                      crossOrigin="anonymous"
+                    />
+                  )}
+                </>
               ) : (
                 <DPEScale energyClass={energyClass} energyValue={energyValue} />
               )}
@@ -1135,7 +1186,7 @@ export const DescriptiveSheetPreview = forwardRef<
                       {/* Colonne gauche */}
                       <td
                         style={{
-                          padding: "5px 6px",
+                          padding: "3px 6px",
                           borderBottom: "1px solid #e0e0e0",
                           fontWeight: "bold",
                           width: "22%",
@@ -1147,7 +1198,7 @@ export const DescriptiveSheetPreview = forwardRef<
                       </td>
                       <td
                         style={{
-                          padding: "5px 6px",
+                          padding: "3px 6px",
                           borderBottom: "1px solid #e0e0e0",
                           width: "28%",
                           color: "#444",
@@ -1160,7 +1211,7 @@ export const DescriptiveSheetPreview = forwardRef<
                         <>
                           <td
                             style={{
-                              padding: "5px 6px",
+                              padding: "3px 6px",
                               borderBottom: "1px solid #e0e0e0",
                               fontWeight: "bold",
                               width: "22%",
@@ -1172,7 +1223,7 @@ export const DescriptiveSheetPreview = forwardRef<
                           </td>
                           <td
                             style={{
-                              padding: "5px 6px",
+                              padding: "3px 6px",
                               borderBottom: "1px solid #e0e0e0",
                               width: "28%",
                               color: "#444",
@@ -1185,14 +1236,14 @@ export const DescriptiveSheetPreview = forwardRef<
                         <>
                           <td
                             style={{
-                              padding: "5px 6px",
+                              padding: "3px 6px",
                               borderBottom: "1px solid #e0e0e0",
                               backgroundColor: "#f8f9fa",
                             }}
                           />
                           <td
                             style={{
-                              padding: "5px 6px",
+                              padding: "3px 6px",
                               borderBottom: "1px solid #e0e0e0",
                             }}
                           />
@@ -1228,6 +1279,26 @@ export const DescriptiveSheetPreview = forwardRef<
                 "fr-FR",
               )}{" "}
               €/mois)
+            </div>
+          )}
+
+          {/* Dépenses annuelles d'énergie : mention obligatoire dans toute
+              annonce (CCH, art. R126-23). Corps 10, celui du texte courant de
+              la fiche : la loi impose une taille au moins égale au reste de
+              l'annonce, donc pas le corps 9 de la note de copropriété. */}
+          {energyCostNotice && (
+            <div
+              style={{
+                marginTop: "6px",
+                padding: "6px 10px",
+                backgroundColor: "#f5f5f5",
+                borderRadius: "4px",
+                fontSize: "10px",
+                lineHeight: 1.4,
+                color: "#333",
+              }}
+            >
+              {energyCostNotice}
             </div>
           )}
         </div>
