@@ -73,6 +73,12 @@ interface PropertyEnergy {
   energyValue?: number | null
   gesClass?: string | null
   gesValue?: number | null
+  /** Dépenses annuelles estimées, abonnements compris (mention légale). */
+  annualEnergyCostMin?: number | null
+  annualEnergyCostMax?: number | null
+  /** Date d'indexation des prix, sérialisée en ISO par l'API. */
+  dateReferenceEnergie?: string | null
+  dpeDate?: string | null
   labelGenerated: boolean
   labelGeneratedAt?: string | null
   labelColor?: string | null

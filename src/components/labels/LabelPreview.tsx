@@ -2,6 +2,8 @@
 
 import { forwardRef } from "react";
 
+import { buildEnergyCostNotice } from "@/lib/energy-cost-notice";
+
 export interface LabelProperty {
   reference: string;
   title: string;
@@ -27,6 +29,11 @@ export interface LabelProperty {
   energyValue?: number | null;
   gesClass?: string | null;
   gesValue?: number | null;
+  /** Dépenses annuelles estimées, abonnements compris (mention légale). */
+  annualEnergyCostMin?: number | null;
+  annualEnergyCostMax?: number | null;
+  /** Date d'indexation des prix de l'énergie, ou à défaut date du DPE. */
+  energyPriceReferenceDate?: string | Date | null;
   hasBalcony?: boolean;
   hasTerrace?: boolean;
   hasGarden?: boolean;
@@ -81,6 +88,14 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
       return price.toLocaleString("fr-FR");
     };
 
+    // Mention obligatoire des dépenses annuelles d'énergie (CCH, art. R126-23),
+    // composée par le module partagé avec la fiche descriptive.
+    const energyCostNotice = buildEnergyCostNotice({
+      annualEnergyCostMin: property.annualEnergyCostMin,
+      annualEnergyCostMax: property.annualEnergyCostMax,
+      referenceDate: property.energyPriceReferenceDate,
+    });
+
     const calculatePriceExcludingFees = () => {
       if (property.honorairesType === "acquereur" && property.honorairesPct) {
         return property.price - (property.honoraires ?? 0);
@@ -90,10 +105,16 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
 
     const priceExcluding = calculatePriceExcludingFees();
 
-    // Description container height (2/3 of available right column space)
-    const DESCRIPTION_HEIGHT = 300;
+    // Budget vertical de la colonne droite, pour 630px de page :
+    //   bandeau 49px + bande légale 35px → 516px utiles après paddings.
+    //   étiquettes 172px + prix 60px + description 260px = 492px, soit 24px
+    //   de marge. Ces valeurs doivent rester cohérentes entre elles : c'est
+    //   leur désaccord qui avait fait disparaître la description.
+    const DESCRIPTION_HEIGHT = 240;
     const DESCRIPTION_WIDTH = 400; // approximate width in pixels
     const LINE_HEIGHT = 1.5;
+    /** Plafond de hauteur d'une étiquette, intitulé non compris. */
+    const LABEL_MAX_HEIGHT = 150;
 
     // Calculate description font size to fit within container
     const DESCRIPTION_PADDING = 8; // padding-bottom for html2canvas rendering
@@ -263,18 +284,6 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
               })}
             </div>
 
-            {/* Géorisques Notice */}
-            <div
-              style={{
-                marginTop: "10px",
-                fontSize: "7px",
-                color: "#6c757d",
-                lineHeight: 1.4,
-              }}
-            >
-              Les informations sur les risques auxquels ce bien est exposé sont
-              disponibles sur le site Géorisques : www.georisques.gouv.fr
-            </div>
           </div>
 
           {/* Right Column - Info */}
@@ -294,6 +303,11 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                 maxHeight: `${DESCRIPTION_HEIGHT}px`,
                 marginBottom: "12px",
                 paddingBottom: "8px",
+                // `overflow: hidden` laisse flexbox résoudre la hauteur
+                // minimale à zéro : sans ce `flexShrink`, la description est le
+                // seul bloc compressible de la colonne, donc le premier
+                // sacrifié, et elle disparaît sans aucun signe visible.
+                flexShrink: 0,
               }}
             >
               <p
@@ -382,20 +396,22 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
             {(property.dpeImageUrl || property.gesImageUrl) && (
               <div
                 style={{
-                  // Étiquettes désormais au format paysage : on les empile au
-                  // lieu de les poser côte à côte, sans quoi elles seraient
-                  // illisibles dans la demi-largeur de l'A4.
+                  // Étiquettes côte à côte. Empilées, elles réclamaient 613px
+                  // dans une colonne qui n'en offre que ~520 : la description
+                  // était alors écrasée à zéro et la GES rognée. Côte à côte,
+                  // le bloc retombe à ~160px.
                   display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "flex-end",
-                  alignItems: "center",
-                  gap: "8px",
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  alignItems: "flex-end",
+                  gap: "10px",
                   paddingTop: "10px",
                   marginTop: "auto",
+                  flexShrink: 0,
                 }}
               >
                 {property.dpeImageUrl && (
-                  <div style={{ textAlign: "center" }}>
+                  <div style={{ textAlign: "center", flex: 1, minWidth: 0 }}>
                     <div
                       style={{
                         fontSize: "8px",
@@ -413,7 +429,11 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                       alt="Étiquette DPE"
                       style={{
                         width: "100%",
-                        maxWidth: "380px",
+                        // Plafond de hauteur explicite : c'est le garde-fou que
+                        // la refonte du gabarit avait retiré. Sans lui, la mise
+                        // en page dépend du rapport de forme du SVG, et tout
+                        // changement de gabarit casse la page en silence.
+                        maxHeight: `${LABEL_MAX_HEIGHT}px`,
                         height: "auto",
                         objectFit: "contain",
                       }}
@@ -424,7 +444,7 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                   </div>
                 )}
                 {property.gesImageUrl && (
-                  <div style={{ textAlign: "center" }}>
+                  <div style={{ textAlign: "center", flex: 1, minWidth: 0 }}>
                     <div
                       style={{
                         fontSize: "8px",
@@ -442,7 +462,11 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                       alt="Étiquette GES"
                       style={{
                         width: "100%",
-                        maxWidth: "380px",
+                        // Plafond de hauteur explicite : c'est le garde-fou que
+                        // la refonte du gabarit avait retiré. Sans lui, la mise
+                        // en page dépend du rapport de forme du SVG, et tout
+                        // changement de gabarit casse la page en silence.
+                        maxHeight: `${LABEL_MAX_HEIGHT}px`,
                         height: "auto",
                         objectFit: "contain",
                       }}
@@ -454,6 +478,46 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                 )}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Bande des mentions légales, pleine largeur.
+            Placées ici et non dans une colonne : la mention des dépenses
+            d'énergie tient sur une ligne au lieu de trois, et elle ne prend
+            plus la place du contenu commercial. */}
+        <div
+          style={{
+            flexShrink: 0,
+            padding: "0 15px 10px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "3px",
+          }}
+        >
+          {energyCostNotice && (
+            // Corps de 9px, celui du texte courant de l'affiche : la loi impose
+            // une taille au moins égale au reste de l'annonce (CCH, art.
+            // R126-23), donc pas le 7px de la mention Géorisques.
+            <div
+              style={{
+                fontSize: "9px",
+                color: "#212529",
+                lineHeight: 1.35,
+              }}
+            >
+              {energyCostNotice}
+            </div>
+          )}
+
+          <div
+            style={{
+              fontSize: "7px",
+              color: "#6c757d",
+              lineHeight: 1.35,
+            }}
+          >
+            Les informations sur les risques auxquels ce bien est exposé sont
+            disponibles sur le site Géorisques : www.georisques.gouv.fr
           </div>
         </div>
       </div>

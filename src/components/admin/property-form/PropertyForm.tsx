@@ -23,7 +23,6 @@ import type {
   PropertyFormData,
   PropertyImageData,
 } from "./types";
-import { getDocumentUrls } from "./types";
 
 // Step components
 import { GeneralInfoStep } from "./steps/GeneralInfoStep";
@@ -75,14 +74,11 @@ export function PropertyForm({
       if (initialData.images) {
         setExistingImages(initialData.images);
       }
-      // Initialiser les URLs DPE/GES pour la prévisualisation (depuis les documents)
-      const docUrls = getDocumentUrls(initialData.documents);
-      if (docUrls.dpeImageUrl) {
-        setPreviewDpeUrl(docUrls.dpeImageUrl);
-      }
-      if (docUrls.gesImageUrl) {
-        setPreviewGesUrl(docUrls.gesImageUrl);
-      }
+      // Volontairement, on n'initialise PAS previewDpeUrl / previewGesUrl avec
+      // les documents existants : ces états ne portent que des aperçus
+      // fraîchement générés. Les y pré-remplir affichait l'ancienne étiquette
+      // comme si elle venait d'être régénérée. Les étiquettes déjà
+      // enregistrées sont lues depuis initialData.documents à l'affichage.
     }
   }, [initialData, form]);
 
@@ -139,6 +135,7 @@ export function PropertyForm({
   const generateEnergyLabels = async () => {
     const energyClass = form.getValues("energyClass");
     const energyValue = form.getValues("energyValue");
+    const finalEnergyValue = form.getValues("finalEnergyValue");
     const gesClass = form.getValues("gesClass");
     const gesValue = form.getValues("gesValue");
 
@@ -162,6 +159,7 @@ export function PropertyForm({
           energyClass,
           gesValue,
           gesClass,
+          finalEnergyValue,
         }),
       });
 
