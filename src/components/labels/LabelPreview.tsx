@@ -106,11 +106,11 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
     const priceExcluding = calculatePriceExcludingFees();
 
     // Budget vertical de la colonne droite, pour 630px de page :
-    //   bandeau 49px + bande légale 35px → 516px utiles après paddings.
-    //   étiquettes 172px + prix 60px + description 260px = 492px, soit 24px
+    //   bandeau 49px + bande légale 53px → 498px utiles après paddings.
+    //   étiquettes 172px + prix 60px + description 250px = 482px, soit 16px
     //   de marge. Ces valeurs doivent rester cohérentes entre elles : c'est
     //   leur désaccord qui avait fait disparaître la description.
-    const DESCRIPTION_HEIGHT = 240;
+    const DESCRIPTION_HEIGHT = 230;
     const DESCRIPTION_WIDTH = 400; // approximate width in pixels
     const LINE_HEIGHT = 1.5;
     /** Plafond de hauteur d'une étiquette, intitulé non compris. */
@@ -488,7 +488,13 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
         <div
           style={{
             flexShrink: 0,
-            padding: "0 15px 10px",
+            // 28px de marge basse, et non 10 : l'affiche est glissée dans un
+            // cadre en vitrine dont la bordure masquait le bas de la feuille,
+            // donc la mention obligatoire. Comme la zone à deux colonnes
+            // occupe l'espace restant, ce seul réglage remonte la bande de
+            // 18px : elle vient à ~5px sous les photos et libère autant de
+            // place en bas.
+            padding: "0 15px 28px",
             display: "flex",
             flexDirection: "column",
             gap: "3px",
