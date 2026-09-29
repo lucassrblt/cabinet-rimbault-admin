@@ -29,7 +29,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import html2canvas from "html2canvas";
-import { waitForImages } from "@/lib/dom/wait-for-images";
+import { nextPaint, waitForImages } from "@/lib/dom/wait-for-images";
+import { withHtml2canvasBaselineFix } from "@/lib/dom/html2canvas-baseline";
 import jsPDF from "jspdf";
 import {
   LabelPreview,
@@ -356,20 +357,28 @@ export function LabelGenerationWizard({
       // html2canvas laisserait sinon des cases blanches dans le PDF.
       setLoadingMessage("Rendu de l'étiquette...");
       await waitForImages(labelRef.current);
+      // Polices de l'affiche chargées, puis une frame pour que la taille de la
+      // description, recalculée à leur arrivée, soit peinte avant la capture.
+      await document.fonts.ready;
+      await nextPaint();
 
       // Generate PDF from canvas
       if (labelRef.current) {
         setLoadingMessage("Génération du PDF...");
-        const canvas = await html2canvas(labelRef.current, {
-          // Résolution inchangée : l'étiquette est imprimée et affichée en
-          // vitrine, la netteté doit rester celle d'aujourd'hui. L'allègement
-          // vient du format JPEG ci-dessous, pas d'une baisse de résolution.
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: "#ffffff",
-          logging: false,
-        });
+        const label = labelRef.current;
+        // Sans ce correctif, le texte sort décalé vers le bas dans le PDF.
+        const canvas = await withHtml2canvasBaselineFix(() =>
+          html2canvas(label, {
+            // Résolution inchangée : l'étiquette est imprimée et affichée en
+            // vitrine, la netteté doit rester celle d'aujourd'hui. L'allègement
+            // vient du format JPEG ci-dessous, pas d'une baisse de résolution.
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: "#ffffff",
+            logging: false,
+          }),
+        );
 
         // JPEG compressé plutôt que PNG : le PNG produisait des fichiers de
         // ~8,5 Mo, sous le plafond de body du middleware Next mais assez près

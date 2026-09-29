@@ -1,8 +1,10 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { buildEnergyCostNotice } from "@/lib/energy-cost-notice";
+import { labelDisplayFont, labelTextFont } from "@/lib/fonts/label-fonts";
+import { splitLeadIn } from "@/lib/label-lead-in";
 
 export interface LabelProperty {
   reference: string;
@@ -105,63 +107,88 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
 
     const priceExcluding = calculatePriceExcludingFees();
 
-    // Budget vertical de la colonne droite, pour 630px de page :
-    //   bandeau 49px + bande légale 53px → 498px utiles après paddings.
-    //   étiquettes 172px + prix 60px + description 250px = 482px, soit 16px
-    //   de marge. Ces valeurs doivent rester cohérentes entre elles : c'est
-    //   leur désaccord qui avait fait disparaître la description.
-    const DESCRIPTION_HEIGHT = 230;
-    const DESCRIPTION_WIDTH = 400; // approximate width in pixels
-    const LINE_HEIGHT = 1.5;
-    /** Plafond de hauteur d'une étiquette, intitulé non compris. */
-    const LABEL_MAX_HEIGHT = 150;
+    const { lead, rest } = splitLeadIn(property.description, property.title);
 
-    // Calculate description font size to fit within container
-    const DESCRIPTION_PADDING = 8; // padding-bottom for html2canvas rendering
+    // Taille de la description, mesurée et non estimée : on part du plafond et
+    // on descend jusqu'à ce que le texte tienne dans la hauteur réellement
+    // libre de la colonne. L'ancienne estimation (caractères par ligne calés
+    // sur Helvetica) se trompait dès qu'on changeait de police ou de gabarit.
+    // La mention des dépenses d'énergie suit la même taille : la loi la veut
+    // au moins aussi grande que le texte de l'annonce (CCH, art. R126-23).
+    const descriptionBoxRef = useRef<HTMLDivElement>(null);
+    const descriptionRef = useRef<HTMLParagraphElement>(null);
+    const noticeRef = useRef<HTMLDivElement>(null);
+    const [textSize, setTextSize] = useState(DESCRIPTION_MAX_SIZE);
+    const [fontsReady, setFontsReady] = useState(0);
 
-    const getDescriptionFontSize = (text: string): number => {
-      const charCount = text.length;
-      const availableHeight = DESCRIPTION_HEIGHT - DESCRIPTION_PADDING;
+    useEffect(() => {
+      let cancelled = false;
+      document.fonts?.ready.then(() => {
+        if (!cancelled) setFontsReady((n) => n + 1);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []);
 
-      // Estimate characters per line and lines needed for different font sizes
-      // Then find the largest font size that fits
-      const fontSizes = [22, 20, 18, 16, 15, 14, 13, 12, 11, 10, 9];
+    useLayoutEffect(() => {
+      const box = descriptionBoxRef.current;
+      const text = descriptionRef.current;
+      if (!box || !text) return;
 
-      for (const fontSize of fontSizes) {
-        const charsPerLine = Math.floor(DESCRIPTION_WIDTH / (fontSize * 0.58));
-        const lineHeightPx = fontSize * LINE_HEIGHT;
-        // Use available height minus padding, then subtract one line for safety
-        const maxLines = Math.floor(availableHeight / lineHeightPx) - 1;
-        const maxChars = charsPerLine * maxLines;
-
-        if (charCount <= maxChars) {
-          return fontSize;
-        }
+      const notice = noticeRef.current;
+      let size = DESCRIPTION_MAX_SIZE;
+      for (; size > DESCRIPTION_MIN_SIZE; size -= DESCRIPTION_SIZE_STEP) {
+        text.style.fontSize = `${size}px`;
+        if (notice) notice.style.fontSize = `${size}px`;
+        if (text.offsetHeight <= box.clientHeight) break;
       }
+      size = Math.max(size, DESCRIPTION_MIN_SIZE);
+      text.style.fontSize = `${size}px`;
+      if (notice) notice.style.fontSize = `${size}px`;
+      setTextSize(size);
+    }, [
+      property.description,
+      property.title,
+      property.city,
+      energyCostNotice,
+      priceExcluding,
+      property.isExclusive,
+      property.dpeImageUrl,
+      property.gesImageUrl,
+      fontsReady,
+    ]);
 
-      return 9; // minimum font size
-    };
+    const display = labelDisplayFont.style.fontFamily;
+    const body = labelTextFont.style.fontFamily;
+    const rule = tint(primaryColor, 0.3);
 
-    const descriptionFontSize = getDescriptionFontSize(property.description);
+    const labels = [
+      { key: "DPE", url: property.dpeImageUrl, alt: "Étiquette DPE" },
+      { key: "GES", url: property.gesImageUrl, alt: "Étiquette GES" },
+    ].filter((label) => label.url);
 
-    // A4 Landscape proportions: 297mm x 210mm (ratio ~1.41)
+    // A4 paysage : 297 × 210 mm, soit 891 × 630 px à 96 dpi.
     return (
       <div
         ref={ref}
+        lang="fr"
         style={{
-          width: "891px", // A4 landscape width at 96dpi (297mm)
-          height: "630px", // A4 landscape height at 96dpi (210mm)
+          width: "891px",
+          height: "630px",
           backgroundColor: "#ffffff",
-          fontFamily: "'Inter', 'Segoe UI', sans-serif",
+          fontFamily: body,
+          color: INK_TEXT,
           display: "flex",
           flexDirection: "column",
         }}
       >
-        {/* Header Band */}
+        {/* Bandeau */}
         <div
           style={{
             backgroundColor: primaryColor,
-            padding: "10px 20px",
+            height: "46px",
+            padding: "0 22px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -171,82 +198,79 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
           <span
             style={{
               color: "#ffffff",
-              fontSize: "24px",
+              fontFamily: display,
+              fontSize: "40px",
               fontWeight: 700,
               fontStyle: "italic",
+              lineHeight: 1,
             }}
           >
             A vendre
           </span>
-          <span style={{ color: "#ffffff", fontSize: "9px", fontWeight: 500 }}>
+          <span style={{ color: "#ffffff", fontSize: "13px" }}>
             Réf {property.reference}
           </span>
         </div>
 
-        {/* Main Content */}
-        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-          {/* Left Column - Photos */}
+        <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+          {/* Colonne gauche : ville, titre, photos */}
           <div
             style={{
-              width: "50%",
+              width: "472px",
+              flexShrink: 0,
               display: "flex",
               flexDirection: "column",
-              padding: "15px",
+              padding: "16px 14px 0 20px",
             }}
           >
-            {/* Property Title */}
             <div
               style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0px",
+                fontFamily: display,
+                fontSize: "30px",
+                fontWeight: 700,
+                color: INK_TITLE,
+                textTransform: "uppercase",
+                lineHeight: 1,
               }}
             >
-              <div
-                style={{
-                  fontSize: "18px",
-                  fontWeight: 700,
-                  color: "#000",
-                  marginBottom: "4px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.3px",
-                  lineHeight: 1.3,
-                }}
-              >
-                {property.city}
-              </div>
-              <div
-                style={{
-                  fontSize: "18px",
-                  fontWeight: 700,
-                  color: primaryColor,
-                  marginBottom: "10px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.3px",
-                  lineHeight: 1.3,
-                }}
-              >
-                {property.title}
-              </div>
+              {property.city}
             </div>
-
-            {/* Main Photo */}
             <div
               style={{
-                width: "100%",
-                height: "320px",
-                borderRadius: "8px",
-                overflow: "hidden",
+                width: "140px",
+                height: "3px",
+                backgroundColor: tint(primaryColor, 0.55),
+                margin: "7px 0 9px",
+              }}
+            />
+            <div
+              style={{
+                fontFamily: display,
+                fontSize: "30px",
+                fontWeight: 700,
+                color: primaryColor,
+                textTransform: "uppercase",
+                lineHeight: 1.02,
+                marginBottom: "10px",
+              }}
+            >
+              {property.title}
+            </div>
+
+            {/* La photo principale prend la hauteur restante : un titre sur
+                deux lignes la raccourcit au lieu de faire déborder la page. */}
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                borderRadius: "10px",
                 background: mainPhotoUrl
                   ? `url(${mainPhotoUrl}) center/cover no-repeat`
                   : "linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#6c757d",
-                fontSize: "14px",
-                position: "relative",
-                marginBottom: "10px",
+                marginBottom: "8px",
               }}
             >
               {!mainPhotoUrl && (
@@ -256,8 +280,7 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
               )}
             </div>
 
-            {/* Small Photos Row */}
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
               {[0, 1, 2].map((index) => {
                 const photo = smallPhotos[index];
                 return (
@@ -265,9 +288,8 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                     key={index}
                     style={{
                       flex: 1,
-                      aspectRatio: "4/3",
-                      borderRadius: "6px",
-                      overflow: "hidden",
+                      aspectRatio: "6/5",
+                      borderRadius: "8px",
                       background: photo?.url
                         ? `url(${photo.url}) center/cover no-repeat`
                         : "linear-gradient(135deg, #f0f0f0 0%, #e5e5e5 100%)",
@@ -283,245 +305,163 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
                 );
               })}
             </div>
-
           </div>
 
-          {/* Right Column - Info */}
+          {/* Colonne droite : description, prix, étiquettes */}
           <div
             style={{
-              width: "50%",
-              padding: "15px 20px",
-              backgroundColor: "#ffffff",
+              flex: 1,
+              minWidth: 0,
+              margin: "16px 0 0",
+              padding: "0 22px 0 16px",
+              borderLeft: `1px solid ${rule}`,
               display: "flex",
               flexDirection: "column",
             }}
           >
-            {/* Description Section */}
+            {/* Zone élastique : elle prend toute la hauteur laissée par le
+                prix et les étiquettes, et la taille du texte s'y ajuste. */}
             <div
-              style={{
-                overflow: "hidden",
-                maxHeight: `${DESCRIPTION_HEIGHT}px`,
-                marginBottom: "12px",
-                paddingBottom: "8px",
-                // `overflow: hidden` laisse flexbox résoudre la hauteur
-                // minimale à zéro : sans ce `flexShrink`, la description est le
-                // seul bloc compressible de la colonne, donc le premier
-                // sacrifié, et elle disparaît sans aucun signe visible.
-                flexShrink: 0,
-              }}
+              ref={descriptionBoxRef}
+              style={{ flex: 1, minHeight: 0, overflow: "hidden" }}
             >
               <p
+                ref={descriptionRef}
                 style={{
-                  fontSize: `${descriptionFontSize}px`,
-                  lineHeight: LINE_HEIGHT,
-                  color: "#000000",
+                  fontSize: `${textSize}px`,
+                  lineHeight: 1.36,
                   textAlign: "justify",
                   margin: 0,
-                  fontWeight: 600,
                 }}
               >
-                {property.description}
+                {lead && (
+                  <strong style={{ color: primaryColor, fontWeight: 700 }}>
+                    {lead}
+                  </strong>
+                )}
+                {rest}
               </p>
             </div>
 
-            {/* Price Section */}
+            <div style={{ height: "1px", backgroundColor: rule, margin: "10px 0", flexShrink: 0 }} />
+
             <div style={{ flexShrink: 0 }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                }}
-              >
-                <div
+              <div style={{ display: "flex", alignItems: "baseline", gap: "14px" }}>
+                <span
                   style={{
-                    fontSize: "28px",
+                    fontFamily: display,
+                    fontSize: "50px",
                     fontWeight: 700,
                     color: primaryColor,
+                    lineHeight: 1,
                   }}
                 >
                   {formatPrice(property.price)} €
-                </div>
+                </span>
                 {property.isExclusive && (
-                  <div
+                  <span
                     style={{
-                      fontSize: "24px",
+                      fontFamily: display,
+                      fontSize: "30px",
                       fontWeight: 700,
                       color: "#dc2626",
-                      marginLeft: "0px",
+                      lineHeight: 1,
                     }}
                   >
                     Exclusivité !
-                  </div>
+                  </span>
                 )}
               </div>
-              {property.honorairesType === "acquereur" && priceExcluding ? (
-                <>
-                  <div
-                    style={{
-                      fontSize: "9px",
-                      color: "#000000",
-                      marginTop: "4px",
-                    }}
-                  >
-                    soit {priceExcluding.toLocaleString("fr-FR")} € honoraires
-                    exclus
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "9px",
-                      color: "#000000",
-                      marginTop: "2px",
-                    }}
-                  >
-                    Honoraires de{" "}
-                    {property.honorairesPct?.toString().replace(".", ",")}% TTC
-                    à la charge de l&apos;acquéreur
-                  </div>
-                </>
-              ) : (
-                <div
-                  style={{
-                    fontSize: "9px",
-                    color: "#000000",
-                    marginTop: "4px",
-                  }}
-                >
-                  Honoraires à la charge du vendeur
-                </div>
-              )}
+              <div style={{ fontSize: "12.5px", lineHeight: 1.3, marginTop: "4px" }}>
+                {property.honorairesType === "acquereur" && priceExcluding ? (
+                  <>
+                    <div>
+                      soit {priceExcluding.toLocaleString("fr-FR")} € honoraires
+                      exclus
+                    </div>
+                    <div>
+                      Honoraires de{" "}
+                      {property.honorairesPct?.toString().replace(".", ",")}% TTC
+                      à la charge de l&apos;acquéreur
+                    </div>
+                  </>
+                ) : (
+                  <div>Honoraires à la charge du vendeur</div>
+                )}
+              </div>
             </div>
 
-            {/* DPE/GES Images Section */}
-            {(property.dpeImageUrl || property.gesImageUrl) && (
-              <div
-                style={{
-                  // Étiquettes côte à côte. Empilées, elles réclamaient 613px
-                  // dans une colonne qui n'en offre que ~520 : la description
-                  // était alors écrasée à zéro et la GES rognée. Côte à côte,
-                  // le bloc retombe à ~160px.
-                  display: "flex",
-                  flexDirection: "row",
-                  justifyContent: "center",
-                  alignItems: "flex-end",
-                  gap: "10px",
-                  paddingTop: "10px",
-                  marginTop: "auto",
-                  flexShrink: 0,
-                }}
-              >
-                {property.dpeImageUrl && (
-                  <div style={{ textAlign: "center", flex: 1, minWidth: 0 }}>
+            {labels.length > 0 && (
+              <>
+                <div style={{ height: "1px", backgroundColor: rule, margin: "10px 0", flexShrink: 0 }} />
+                <div style={{ display: "flex", flexShrink: 0 }}>
+                  {labels.map((label, index) => (
                     <div
+                      key={label.key}
                       style={{
-                        fontSize: "8px",
-                        color: "#6c757d",
-                        marginBottom: "4px",
-                        textTransform: "uppercase",
-                        fontWeight: 600,
+                        flex: 1,
+                        minWidth: 0,
+                        paddingLeft: index > 0 ? "14px" : 0,
+                        paddingRight: index === 0 && labels.length > 1 ? "14px" : 0,
+                        borderLeft: index > 0 ? `1px solid ${rule}` : "none",
                       }}
                     >
-                      DPE
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={label.url ?? undefined}
+                        alt={label.alt}
+                        style={{
+                          display: "block",
+                          // Dimensions `auto` bornées, et non `width: 100%` +
+                          // `object-fit` : html2canvas ignore `object-fit` et
+                          // étire l'image sur sa boîte. Ici c'est la boîte
+                          // elle-même qui garde le rapport de forme du SVG.
+                          // Le plafond de hauteur protège la page si le
+                          // gabarit du SVG change un jour de proportions.
+                          width: "auto",
+                          height: "auto",
+                          maxWidth: "100%",
+                          maxHeight: `${LABEL_MAX_HEIGHT}px`,
+                        }}
+                        /* Requis par html2canvas (useCORS) pour photographier
+                           un SVG servi par Supabase sans salir le canvas. */
+                        crossOrigin="anonymous"
+                      />
                     </div>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={property.dpeImageUrl}
-                      alt="Étiquette DPE"
-                      style={{
-                        width: "100%",
-                        // Plafond de hauteur explicite : c'est le garde-fou que
-                        // la refonte du gabarit avait retiré. Sans lui, la mise
-                        // en page dépend du rapport de forme du SVG, et tout
-                        // changement de gabarit casse la page en silence.
-                        maxHeight: `${LABEL_MAX_HEIGHT}px`,
-                        height: "auto",
-                        objectFit: "contain",
-                      }}
-                      /* Requis par html2canvas (useCORS) pour photographier
-                         un SVG servi par Supabase sans salir le canvas. */
-                      crossOrigin="anonymous"
-                    />
-                  </div>
-                )}
-                {property.gesImageUrl && (
-                  <div style={{ textAlign: "center", flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: "8px",
-                        color: "#6c757d",
-                        marginBottom: "4px",
-                        textTransform: "uppercase",
-                        fontWeight: 600,
-                      }}
-                    >
-                      GES
-                    </div>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={property.gesImageUrl}
-                      alt="Étiquette GES"
-                      style={{
-                        width: "100%",
-                        // Plafond de hauteur explicite : c'est le garde-fou que
-                        // la refonte du gabarit avait retiré. Sans lui, la mise
-                        // en page dépend du rapport de forme du SVG, et tout
-                        // changement de gabarit casse la page en silence.
-                        maxHeight: `${LABEL_MAX_HEIGHT}px`,
-                        height: "auto",
-                        objectFit: "contain",
-                      }}
-                      /* Requis par html2canvas (useCORS) pour photographier
-                         un SVG servi par Supabase sans salir le canvas. */
-                      crossOrigin="anonymous"
-                    />
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
 
-        {/* Bande des mentions légales, pleine largeur.
-            Placées ici et non dans une colonne : la mention des dépenses
-            d'énergie tient sur une ligne au lieu de trois, et elle ne prend
-            plus la place du contenu commercial. */}
+        {/* Pied : mentions légales, pleine largeur et centrées. */}
         <div
           style={{
             flexShrink: 0,
-            // 28px de marge basse, et non 10 : l'affiche est glissée dans un
-            // cadre en vitrine dont la bordure masquait le bas de la feuille,
-            // donc la mention obligatoire. Comme la zone à deux colonnes
-            // occupe l'espace restant, ce seul réglage remonte la bande de
-            // 18px : elle vient à ~5px sous les photos et libère autant de
-            // place en bas.
-            padding: "0 15px 28px",
+            margin: "10px 20px 0",
+            borderTop: "1px solid #cfcfcf",
+            // 28px de marge basse : l'affiche est glissée dans un cadre en
+            // vitrine dont la bordure masquait le bas de la feuille, donc la
+            // mention obligatoire.
+            padding: "7px 0 28px",
             display: "flex",
             flexDirection: "column",
-            gap: "3px",
+            alignItems: "center",
+            gap: "2px",
+            textAlign: "center",
+            color: "#555555",
           }}
         >
           {energyCostNotice && (
-            // Corps de 9px, celui du texte courant de l'affiche : la loi impose
-            // une taille au moins égale au reste de l'annonce (CCH, art.
-            // R126-23), donc pas le 7px de la mention Géorisques.
             <div
-              style={{
-                fontSize: "9px",
-                color: "#212529",
-                lineHeight: 1.35,
-              }}
+              ref={noticeRef}
+              style={{ fontSize: `${textSize}px`, color: INK_TEXT, lineHeight: 1.3 }}
             >
               {energyCostNotice}
             </div>
           )}
-
-          <div
-            style={{
-              fontSize: "7px",
-              color: "#6c757d",
-              lineHeight: 1.35,
-            }}
-          >
+          <div style={{ fontSize: "9px", lineHeight: 1.3 }}>
             Les informations sur les risques auxquels ce bien est exposé sont
             disponibles sur le site Géorisques : www.georisques.gouv.fr
           </div>
@@ -532,3 +472,22 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
 );
 
 LabelPreview.displayName = "LabelPreview";
+
+const INK_TITLE = "#2b2b2b";
+const INK_TEXT = "#333333";
+/** Bornes de la taille de la description, en px. */
+const DESCRIPTION_MAX_SIZE = 15;
+const DESCRIPTION_MIN_SIZE = 9;
+const DESCRIPTION_SIZE_STEP = 0.25;
+/** Plafond de hauteur d'une étiquette, intitulé non compris. */
+const LABEL_MAX_HEIGHT = 140;
+
+/** Teinte claire de la couleur agence, pour les filets. */
+function tint(color: string, alpha: number): string {
+  const hex = color.trim().replace(/^#/, "");
+  const full =
+    hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+  if (!/^[0-9a-f]{6}$/i.test(full)) return "#dddddd";
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
