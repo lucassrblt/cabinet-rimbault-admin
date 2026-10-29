@@ -474,7 +474,7 @@ export const LabelPreview = forwardRef<HTMLDivElement, LabelPreviewProps>(
 LabelPreview.displayName = "LabelPreview";
 
 const INK_TITLE = "#2b2b2b";
-const INK_TEXT = "#333333";
+const INK_TEXT = "#000000";
 /** Bornes de la taille de la description, en px. */
 const DESCRIPTION_MAX_SIZE = 15;
 const DESCRIPTION_MIN_SIZE = 9;
